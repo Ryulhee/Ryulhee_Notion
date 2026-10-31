@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>작업 타이머</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Oswald:wght@600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* Layout: four equal cards in one row (stopwatch, count up/down, pomodoro, sound); wraps to 2x2 then 1 column when narrow. */
+:root{
+  --bg:#f5f5f2; --card:#ffffff; --fg:#161615; --mute:#6c6c68; --line:#dcdcd7;
+  --btn:#161615; --btn-fg:#ffffff; --bar:#161615; --on:#2f7d4f;
+  --font:'Noto Sans KR',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'DM Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101010; --card:#1a1a19; --fg:#f2f2ee; --mute:#9b9b95; --line:#2f2f2c;
+    --btn:#f2f2ee; --btn-fg:#161615; --bar:#f2f2ee; --on:#5fbf86; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101010; --card:#1a1a19; --fg:#f2f2ee; --mute:#9b9b95; --line:#2f2f2c;
+  --btn:#f2f2ee; --btn-fg:#161615; --bar:#f2f2ee; --on:#5fbf86; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:13px;line-height:1.4;
+  padding-block:12px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
+.wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.clock{grid-column:1/-1;display:flex;gap:10px;justify-content:center}
+.tile{position:relative;flex:1;max-width:170px;aspect-ratio:1/1.1;background:#0b0b0b;color:#fff;border-radius:16px;display:grid;place-items:center;font-family:'Oswald','Noto Sans KR',Impact,sans-serif;font-weight:600;font-size:clamp(2.6rem,12vw,4.6rem);line-height:1;font-variant-numeric:tabular-nums;border:1px solid var(--line)}
+.tile::after{content:"";position:absolute;left:0;right:0;top:50%;height:2px;background:var(--bg);opacity:.85}
+.tile small{position:absolute;bottom:9px;font-family:var(--font);font-size:11px;font-weight:700;letter-spacing:.06em;color:#fff}
+.tile .l{left:11px}.tile .r{right:11px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:26px}
+h2{margin:0;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.t{font-family:var(--mono);font-size:2.1rem;font-weight:500;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.sub{color:var(--mute);font-size:12px;min-height:16px}
+.row{display:flex;gap:6px;flex-wrap:wrap}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--btn);background:var(--btn);color:var(--btn-fg);border-radius:7px;padding:6px 12px;font-weight:500}
+button.ghost{background:transparent;color:var(--fg);border-color:var(--line)}
+button:hover{opacity:.88}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent;color:var(--mute);padding:3px 9px;font-size:12px}
+.seg button[aria-pressed="true"]{background:var(--btn);color:var(--btn-fg)}
+.bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--bar);transition:width .2s linear}
+.fields{display:flex;gap:10px;flex-wrap:wrap;align-items:center;color:var(--mute);font-size:12px}
+.fields label{display:flex;align-items:center;gap:5px}
+input[type=number]{width:54px;border:1px solid var(--line);border-radius:6px;background:transparent;padding:3px 6px;font-family:var(--mono)}
+select{border:1px solid var(--line);border-radius:6px;background:var(--card);padding:4px 6px;width:100%}
+input[type=range]{width:100%;accent-color:var(--fg)}
+.laps{margin:0;padding:0;list-style:none;font-family:var(--mono);font-size:12px;color:var(--mute);min-height:16px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--line);display:inline-block}
+.dot.on{background:var(--on)}
+.note{color:var(--mute);font-size:11px}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+</style>
+</head>
+<body>
+
+
+<main class="wrap">
+  <section class="clock" aria-label="현재 시간">
+    <div class="tile"><span id="ckH">00</span><small class="l" id="ckAp">AM</small></div>
+    <div class="tile"><span id="ckM">00</span><small class="r" id="ckDow"></small></div>
+  </section>
+  <section class="card" aria-label="스톱워치">
+    <div class="head"><h2>스톱워치</h2></div>
+    <div class="t" id="swT">00:00.0</div>
+    <ol class="laps" id="swLaps"></ol>
+    <div class="row">
+      <button id="swGo">시작</button>
+      <button id="swLap" class="ghost">랩</button>
+      <button id="swReset" class="ghost">초기화</button>
+    </div>
+  </section>
+
+  <section class="card" aria-label="카운트업과 카운트다운">
+    <div class="head">
+      <h2>카운트업</h2>
+      <div class="seg" role="group" aria-label="방향">
+        <button id="cuUp" aria-pressed="true">올라가기</button>
+        <button id="cuDown" aria-pressed="false">내려가기</button>
+      </div>
+    </div>
+    <div class="t" id="cuT">00:00</div>
+    <div class="bar"><i id="cuBar"></i></div>
+    <div class="fields"><label for="cuMin">목표<input id="cuMin" type="number" min="1" max="600" value="25">분</label><span id="cuSub" class="sub"></span></div>
+    <div class="row">
+      <button id="cuGo">시작</button>
+      <button id="cuReset" class="ghost">초기화</button>
+    </div>
+  </section>
+
+  <section class="card" aria-label="뽀모도로">
+    <div class="head"><h2>뽀모도로</h2><span id="poPhase" class="sub">집중</span></div>
+    <div class="t" id="poT">25:00</div>
+    <div class="fields">
+      <label for="poFocus">집중<input id="poFocus" type="number" min="1" max="180" value="25">분</label>
+      <label for="poBreak">휴식<input id="poBreak" type="number" min="1" max="60" value="5">분</label>
+    </div>
+    <div class="sub" id="poCount">완료 0회</div>
+    <div class="row">
+      <button id="poGo">시작</button>
+      <button id="poSkip" class="ghost">건너뛰기</button>
+      <button id="poReset" class="ghost">초기화</button>
+    </div>
+  </section>
+
+  <section class="card" aria-label="ASMR 사운드">
+    <div class="head"><h2>ASMR</h2><span id="sndDot" class="dot" aria-hidden="true"></span></div>
+    <button id="sndBtn" aria-pressed="false">ASMR 켜기</button>
+    <label class="sub" for="sndType">소리</label>
+    <select id="sndType">
+      <option value="rain">빗소리</option>
+      <option value="wave">파도</option>
+      <option value="brown">브라운 노이즈</option>
+      <option value="white">화이트 노이즈</option>
+    </select>
+    <label class="sub" for="sndVol">음량</label>
+    <input id="sndVol" type="range" min="0" max="1" step="0.01" value="0.4">
+    <div class="note">브라우저에서 만든 합성음입니다. 녹음 파일은 들어 있지 않습니다.</div>
+  </section>
+</main>
+
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  var store={
+    get:function(k,d){try{var v=localStorage.getItem('timers:'+k);return v===null?d:JSON.parse(v)}catch(e){return d}},
+    set:function(k,v){try{localStorage.setItem('timers:'+k,JSON.stringify(v))}catch(e){}}
+  };
+
+  /* ---------- audio helpers ---------- */
+  var ac=null;
+  function audio(){
+    if(!ac){try{ac=new (window.AudioContext||window.webkitAudioContext)()}catch(e){ac=null}}
+    if(ac&&ac.state==='suspended'){ac.resume()}
+    return ac;
+  }
+  function beep(){
+    var c=audio(); if(!c)return;
+    for(var i=0;i<3;i++){
+      var o=c.createOscillator(),g=c.createGain(),t=c.currentTime+i*0.35;
+      o.frequency.value=880;o.connect(g);g.connect(c.destination);
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.25,t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.25);
+      o.start(t);o.stop(t+0.3);
+    }
+  }
+  function fmt(ms,tenth){
+    ms=Math.max(0,ms);
+    var s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=s%60;
+    var p=function(n){return String(n).padStart(2,'0')};
+    var o=(h?h+':':'')+p(m)+':'+p(sec);
+    if(tenth)o+='.'+Math.floor(ms%1000/100);
+    return o;
+  }
+  function el(o){return o.base+(o.run?Date.now()-o.t0:0)}
+
+  /* ---------- stopwatch ---------- */
+  var sw={run:false,base:0,t0:0,laps:[]};
+  $('swGo').onclick=function(){audio();if(sw.run){sw.base=el(sw);sw.run=false}else{sw.t0=Date.now();sw.run=true}render()};
+  $('swLap').onclick=function(){if(el(sw)>0){sw.laps.push(el(sw))}render()};
+  $('swReset').onclick=function(){sw={run:false,base:0,t0:0,laps:[]};render()};
+
+  /* ---------- count up / down ---------- */
+  var cu={run:false,base:0,t0:0,mode:store.get('cuMode','up'),min:store.get('cuMin',25),done:false};
+  $('cuMin').value=cu.min;
+  function cuReset(){cu.run=false;cu.base=0;cu.done=false}
+  $('cuUp').onclick=function(){cu.mode='up';store.set('cuMode','up');cuReset();render()};
+  $('cuDown').onclick=function(){cu.mode='down';store.set('cuMode','down');cuReset();render()};
+  $('cuMin').onchange=function(){
+    var v=parseInt($('cuMin').value,10);if(!(v>0))v=25;cu.min=v;$('cuMin').value=v;store.set('cuMin',v);cuReset();render();
+  };
+  $('cuGo').onclick=function(){
+    audio();
+    if(cu.done){cuReset()}
+    if(cu.run){cu.base=el(cu);cu.run=false}else{cu.t0=Date.now();cu.run=true}
+    render();
+  };
+  $('cuReset').onclick=function(){cuReset();render()};
+
+  /* ---------- pomodoro ---------- */
+  var po={run:false,phase:'focus',left:0,t0:0,focus:store.get('poFocus',25),brk:store.get('poBreak',5),count:0};
+  $('poFocus').value=po.focus;$('poBreak').value=po.brk;
+  function poLen(){return (po.phase==='focus'?po.focus:po.brk)*60000}
+  function poRem(){return po.left-(po.run?Date.now()-po.t0:0)}
+  po.left=poLen();
+  function poSwitch(count){
+    if(count&&po.phase==='focus')po.count++;
+    po.phase=po.phase==='focus'?'break':'focus';
+    po.left=poLen();po.t0=Date.now();
+  }
+  function poSet(){
+    var f=parseInt($('poFocus').value,10),b=parseInt($('poBreak').value,10);
+    if(!(f>0))f=25;if(!(b>0))b=5;
+    po.focus=f;po.brk=b;$('poFocus').value=f;$('poBreak').value=b;
+    store.set('poFocus',f);store.set('poBreak',b);
+    if(!po.run)po.left=poLen();
+    render();
+  }
+  $('poFocus').onchange=poSet;$('poBreak').onchange=poSet;
+  $('poGo').onclick=function(){
+    audio();
+    if(po.run){po.left=poRem();po.run=false}else{po.t0=Date.now();po.run=true}
+    render();
+  };
+  $('poSkip').onclick=function(){poSwitch(false);render()};
+  $('poReset').onclick=function(){po.run=false;po.phase='focus';po.count=0;po.left=poLen();render()};
+
+  /* ---------- sound ---------- */
+  var snd={on:false,type:store.get('sndType','rain'),vol:store.get('sndVol',0.4),src:null,master:null,lfo:null};
+  $('sndType').value=snd.type;$('sndVol').value=snd.vol;
+  function noiseBuf(c,kind){
+    var len=c.sampleRate*4,b=c.createBuffer(1,len,c.sampleRate),d=b.getChannelData(0),last=0;
+    for(var i=0;i<len;i++){
+      var w=Math.random()*2-1;
+      if(kind==='brown'){last=(last+0.02*w)/1.02;d[i]=last*3.5}else{d[i]=w}
+    }
+    return b;
+  }
+  function stopSound(){
+    try{if(snd.src)snd.src.stop()}catch(e){}
+    try{if(snd.lfo)snd.lfo.stop()}catch(e){}
+    try{if(snd.master)snd.master.disconnect()}catch(e){}
+    snd.src=null;snd.lfo=null;snd.master=null;
+  }
+  function startSound(){
+    var c=audio(); if(!c)return false;
+    stopSound();
+    var m=c.createGain();m.gain.value=snd.vol;m.connect(c.destination);snd.master=m;
+    var s=c.createBufferSource();s.loop=true;
+    var t=snd.type;
+    if(t==='rain'){
+      s.buffer=noiseBuf(c,'white');
+      var hp=c.createBiquadFilter();hp.type='highpass';hp.frequency.value=700;
+      var lp=c.createBiquadFilter();lp.type='lowpass';lp.frequency.value=6500;
+      var g=c.createGain();g.gain.value=0.45;
+      s.connect(hp);hp.connect(lp);lp.connect(g);g.connect(m);
+    }else if(t==='wave'){
+      s.buffer=noiseBuf(c,'brown');
+      var lp2=c.createBiquadFilter();lp2.type='lowpass';lp2.frequency.value=700;
+      var amp=c.createGain();amp.gain.value=0.55;
+      var lfo=c.createOscillator();lfo.frequency.value=0.12;
+      var depth=c.createGain();depth.gain.value=0.45;
+      lfo.connect(depth);depth.connect(amp.gain);lfo.start();snd.lfo=lfo;
+      s.connect(lp2);lp2.connect(amp);amp.connect(m);
+    }else if(t==='brown'){
+      s.buffer=noiseBuf(c,'brown');
+      var g2=c.createGain();g2.gain.value=0.5;s.connect(g2);g2.connect(m);
+    }else{
+      s.buffer=noiseBuf(c,'white');
+      var lp3=c.createBiquadFilter();lp3.type='lowpass';lp3.frequency.value=9000;
+      var g3=c.createGain();g3.gain.value=0.3;s.connect(lp3);lp3.connect(g3);g3.connect(m);
+    }
+    s.start();snd.src=s;
+    return true;
+  }
+  $('sndBtn').onclick=function(){
+    if(snd.on){stopSound();snd.on=false}else{snd.on=startSound()}
+    render();
+  };
+  $('sndType').onchange=function(){
+    snd.type=$('sndType').value;store.set('sndType',snd.type);
+    if(snd.on)startSound();
+  };
+  $('sndVol').oninput=function(){
+    snd.vol=parseFloat($('sndVol').value);store.set('sndVol',snd.vol);
+    if(snd.master)snd.master.gain.value=snd.vol;
+  };
+
+  /* ---------- render loop ---------- */
+  function render(){
+    /* clock */
+    var now=new Date(),hh=now.getHours();
+    $('ckH').textContent=String(hh%12||12).padStart(2,'0');
+    $('ckM').textContent=String(now.getMinutes()).padStart(2,'0');
+    $('ckAp').textContent=hh>=12?'PM':'AM';
+    $('ckDow').textContent=now.toLocaleDateString('ko-KR',{weekday:'long'});
+    /* stopwatch */
+    $('swT').textContent=fmt(el(sw),true);
+    $('swGo').textContent=sw.run?'정지':(sw.base>0?'계속':'시작');
+    var last=sw.laps.slice(-3),off=sw.laps.length-last.length,html='';
+    last.forEach(function(v,i){
+      var idx=off+i,prev=idx>0?sw.laps[idx-1]:0;
+      html+='<li>랩 '+(idx+1)+' · '+fmt(v,true)+' (+'+fmt(v-prev,true)+')</li>';
+    });
+    $('swLaps').innerHTML=html;
+
+    /* count up/down */
+    var goal=cu.min*60000,e=el(cu);
+    if(cu.run&&e>=goal){cu.base=goal;cu.run=false;cu.done=true;e=goal;beep()}
+    $('cuT').textContent=fmt(cu.mode==='up'?e:goal-e);
+    $('cuBar').style.width=Math.min(100,e/goal*100)+'%';
+    $('cuUp').setAttribute('aria-pressed',cu.mode==='up');
+    $('cuDown').setAttribute('aria-pressed',cu.mode==='down');
+    $('cuGo').textContent=cu.run?'정지':(cu.done?'다시':(cu.base>0?'계속':'시작'));
+    $('cuSub').textContent=cu.done?'목표 도달':(cu.mode==='up'?'0에서 목표까지':'목표에서 0까지');
+
+    /* pomodoro */
+    var r=poRem();
+    if(po.run&&r<=0){beep();poSwitch(true);r=poRem()}
+    $('poT').textContent=fmt(r);
+    $('poPhase').textContent=po.phase==='focus'?'집중':'휴식';
+    $('poGo').textContent=po.run?'정지':'시작';
+    $('poCount').textContent='완료 '+po.count+'회';
+
+    /* sound */
+    $('sndBtn').textContent=snd.on?'ASMR 끄기':'ASMR 켜기';
+    $('sndBtn').setAttribute('aria-pressed',snd.on);
+    $('sndDot').className='dot'+(snd.on?' on':'');
+  }
+  setInterval(render,100);
+  render();
+})();
+</script>
+
+</body>
+</html>
