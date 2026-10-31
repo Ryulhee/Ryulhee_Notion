@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>텐미닛 플래너 대시보드</title>
+<style>
+:root{
+  --bg:#fff;--fg:#1d1d1f;--mut:#86868b;--line:#c9c9ce;--line2:#e5e5ea;--card:#f5f5f7;--acc:#0071e3;
+  --c0:#4c8bf5;--c1:#a56cf0;--c2:#f5a04c;--c3:#4cc38a;--c4:#9a9aa1;
+}
+@media (prefers-color-scheme:dark){:root{--bg:#1c1c1e;--fg:#f5f5f7;--mut:#98989f;--line:#48484a;--line2:#303034;--card:#2c2c2e;--acc:#2997ff}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",sans-serif;overflow:hidden}
+.wrap{display:grid;grid-template-columns:230px minmax(280px,1fr) 340px;gap:12px;height:100vh;padding:8px 10px}
+.col{min-height:0;min-width:0;display:flex;flex-direction:column}
+h1{margin:0 0 3px;font-size:12px;letter-spacing:.14em;font-weight:700;border-bottom:2px solid var(--fg);padding-bottom:2px;flex:none}
+.ttw{flex:1;min-height:0}
+table.tt{border-collapse:collapse;width:100%;height:100%;table-layout:fixed;user-select:none;-webkit-user-select:none;touch-action:none}
+.tt td{border-bottom:1px solid var(--line);border-left:1px solid var(--line);padding:0;position:relative;min-height:14px}
+.tt td.h{width:28px;text-align:center;font-weight:600;font-size:12px;border-left:0}
+.tt td.c{cursor:crosshair}
+.tt td.c.a{background:var(--col)}
+.tt td.c.sel{outline:2px solid var(--acc);outline-offset:-2px;background:color-mix(in srgb,var(--acc) 25%,transparent)}
+.tt td.c.era{outline:2px solid #ff3b30;outline-offset:-2px;background:color-mix(in srgb,#ff3b30 25%,transparent)}
+.tt tr:last-child td{border-bottom:2px solid var(--fg)}
+.tt td.now::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 2px #ff3b30;pointer-events:none}
+.tt tr.hnow td.h{color:#ff3b30}
+.tt tr.noon td{border-top:2px solid var(--fg)}
+/* middle */
+.top{display:flex;gap:6px;align-items:center;flex:none;margin-bottom:6px;flex-wrap:wrap}
+input,button{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 7px;min-width:0}
+button{cursor:pointer}
+input[type=date]{width:128px}
+.sw{display:flex;gap:4px}
+.sw button{padding:2px 8px;border:2px solid transparent;color:#fff;font-size:12px}
+.sw button.on{border-color:var(--fg)}
+.add{display:flex;gap:6px;flex:none;margin-bottom:6px}
+.add input{flex:1}
+.prog{flex:none;font-size:12px;color:var(--mut);margin-bottom:4px;display:flex;gap:8px;align-items:center}
+.bar{flex:1;height:6px;background:var(--line2);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--acc);width:0}
+.list{flex:1;min-height:0;overflow:auto;border-top:1px solid var(--line2)}
+.it{display:flex;gap:5px;align-items:center;padding:4px 0;border-bottom:1px solid var(--line2)}
+.it.dn .t{text-decoration:line-through;color:var(--mut)}
+.it input[type=checkbox]{width:16px;height:16px;flex:none;padding:0}
+.it .t{flex:1;border-color:transparent;background:transparent;padding:4px}
+.it .t:focus{border-color:var(--line);background:var(--bg)}
+.it .tm{width:50px;text-align:center;padding:4px 2px}
+.it .dot{width:16px;height:16px;border-radius:5px;border:0;padding:0;flex:none}
+.it .x{border:0;background:none;color:var(--mut);padding:0 4px}
+.hint{flex:none;color:var(--mut);font-size:11px;margin-top:4px}
+.frame{flex:1;min-height:0;border:1px solid var(--line2);border-radius:12px;width:100%;background:var(--bg)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="col"><h1>TIMETABLE</h1><div class="ttw"><table class="tt" id="tt"></table></div></div>
+
+  <div class="col">
+    <h1>DAILY PLANNER</h1>
+    <div class="top">
+      <input type="date" id="dt"><button id="today">오늘</button><button id="sort">시간순</button>
+      <div class="sw" id="sw"></div>
+    </div>
+    <div class="add"><input type="text" id="nt" placeholder="할 일 입력 후 Enter"><button id="addb">추가</button></div>
+    <div class="prog"><span id="pt"></span><div class="bar"><i id="pb"></i></div></div>
+    <div class="list" id="list"></div>
+    <div class="hint">시작·종료(예: 0930 또는 9:30)를 입력하면 왼쪽 격자가 칠해져요. 격자를 드래그하면 새 할 일이 생기고, 칠해진 칸을 다시 누르면 그 할 일의 시간이 해제돼요.</div>
+  </div>
+
+  <div class="col"><h1>TIMER</h1><iframe class="frame" src="index.html" title="타이머"></iframe></div>
+</div>
+<script>
+(function(){
+var AREAS=["업무","관심사","일기","건강","개인"];
+var $=function(id){return document.getElementById(id)};
+var area=0,date=ymd(new Date()),tasks=[],drag=null;
+function ymd(d){var m=d.getMonth()+1,x=d.getDate();return d.getFullYear()+"-"+(m<10?"0":"")+m+"-"+(x<10?"0":"")+x}
+function key(){return "pl-"+date}
+function load(){try{tasks=JSON.parse(localStorage.getItem(key())||"[]")}catch(e){tasks=[]}}
+function save(){try{localStorage.setItem(key(),JSON.stringify(tasks))}catch(e){}}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function p2(n){return (n<10?"0":"")+n}
+function norm(v){
+  v=String(v||"").trim();var m=v.match(/^(\d{1,2}):?(\d{2})$/),h,n;
+  if(m){h=+m[1];n=+m[2]}else if(/^\d{1,2}$/.test(v)){h=+v;n=0}else return "";
+  return h<24&&n<60?p2(h)+":"+p2(n):"";
+}
+function mins(v){var p=v.split(":");return +p[0]*60+ +p[1]}
+function sMin(v){var m=mins(v);return m<360?m+1440:m}
+function eMin(v){var m=mins(v);return m<=360?m+1440:m}
+function hhmm(m){m%=1440;return p2(Math.floor(m/60))+":"+p2(m%60)}
+function range(t){
+  var s=norm(t.s),e=norm(t.e);if(!s||!e)return null;
+  var a=Math.floor((sMin(s)-360)/10),b=Math.ceil((eMin(e)-360)/10)-1;
+  if(b<a)return null;return [Math.max(0,a),Math.min(143,b)];
+}
+/* grid */
+var tt=$("tt"),h="";
+for(var r=0;r<24;r++){
+  var hr=(6+r)%24,lab=hr%12===0?12:hr%12;
+  h+='<tr data-r="'+r+'"'+(r===6?' class="noon"':'')+'><td class="h">'+lab+'</td>';
+  for(var c=0;c<6;c++)h+='<td class="c" data-i="'+(r*6+c)+'"></td>';
+  h+="</tr>";
+}
+tt.innerHTML=h;
+var cells=tt.querySelectorAll("td.c");
+function build(){var map=new Array(144);tasks.forEach(function(t){var g=range(t);if(!g)return;for(var i=g[0];i<=g[1];i++)map[i]={a:t.a,id:t.id,t:t.t}});return map}
+function paint(){
+  var map=build(),now=new Date(),ni=-1,i;
+  if(date===ymd(now)){var nm=now.getHours()*60+now.getMinutes();if(nm<360)nm+=1440;ni=Math.floor((nm-360)/10)}
+  var lo=-1,hi=-1;if(drag){lo=Math.min(drag.a,drag.b);hi=Math.max(drag.a,drag.b)}
+  for(i=0;i<144;i++){
+    var c=cells[i],m=map[i],cl="c";
+    if(m)cl+=" a";
+    if(drag&&i>=lo&&i<=hi)cl+=drag.erase?" era":" sel";
+    if(i===ni)cl+=" now";
+    c.className=cl;
+    c.style.setProperty("--col",m?"var(--c"+m.a+")":"");
+    c.title=hhmm(360+i*10)+(m&&m.t?" · "+m.t:"");
+  }
+  Array.prototype.forEach.call(tt.rows,function(row,k){row.classList.toggle("hnow",ni>=0&&Math.floor(ni/6)===k)});
+  progress(map);
+}
+function progress(map){
+  var n=tasks.length,d=tasks.filter(function(t){return t.d}).length,pc=n?Math.round(d/n*100):0,cnt=0;
+  (map||build()).forEach(function(m){if(m)cnt+=10});
+  $("pt").textContent="완료 "+d+"/"+n+" ("+pc+"%) · 칠한 시간 "+Math.floor(cnt/60)+"시간 "+(cnt%60)+"분";
+  $("pb").style.width=pc+"%";
+}
+/* list */
+function renderList(focusId){
+  var L=$("list");L.innerHTML="";
+  tasks.forEach(function(t){
+    var d=document.createElement("div");d.className="it"+(t.d?" dn":"");
+    d.innerHTML='<input type="checkbox"><input class="t" type="text" placeholder="할 일"><button class="dot" title="영역 바꾸기"></button><input class="tm s" type="text" maxlength="5" placeholder="시작"><input class="tm e" type="text" maxlength="5" placeholder="종료"><button class="x" title="삭제">✕</button>';
+    var q=function(s){return d.querySelector(s)};
+    q("input[type=checkbox]").checked=!!t.d;
+    q(".t").value=t.t||"";
+    q(".dot").style.background="var(--c"+t.a+")";q(".dot").title=AREAS[t.a]+" (클릭해서 변경)";
+    q(".s").value=t.s||"";q(".e").value=t.e||"";
+    q("input[type=checkbox]").onchange=function(){t.d=this.checked;d.classList.toggle("dn",t.d);save();progress()};
+    q(".t").oninput=function(){t.t=this.value;save()};
+    q(".dot").onclick=function(){t.a=(t.a+1)%AREAS.length;save();renderList();paint()};
+    ["s","e"].forEach(function(k){
+      var el=q("."+k);
+      el.oninput=function(){t[k]=this.value;save();paint()};
+      el.onblur=function(){var v=norm(this.value);this.value=v;t[k]=v;save();paint()};
+      el.onkeydown=function(e){if(e.key==="Enter")this.blur()};
+    });
+    q(".x").onclick=function(){tasks=tasks.filter(function(x){return x!==t});save();renderList();paint()};
+    L.appendChild(d);
+    if(focusId===t.id)q(".t").focus();
+  });
+}
+function addTask(title,s,e){
+  var t={id:uid(),d:false,t:title||"",a:area,s:s||"",e:e||""};tasks.push(t);save();renderList(title?null:t.id);paint();
+  var L=$("list");L.scrollTop=L.scrollHeight;
+}
+$("addb").onclick=function(){var v=$("nt").value.trim();if(!v)return;addTask(v);$("nt").value=""};
+$("nt").onkeydown=function(e){if(e.key==="Enter"&&!e.isComposing)$("addb").onclick()};
+$("sort").onclick=function(){
+  tasks.sort(function(a,b){var x=norm(a.s),y=norm(b.s);if(!x&&!y)return 0;if(!x)return 1;if(!y)return -1;return sMin(x)-sMin(y)});
+  save();renderList();
+};
+/* drag */
+function cellAt(x,y){var el=document.elementFromPoint(x,y);return el&&el.classList&&el.classList.contains("c")?+el.dataset.i:-1}
+tt.addEventListener("pointerdown",function(e){
+  var i=cellAt(e.clientX,e.clientY);if(i<0)return;
+  drag={a:i,b:i,erase:!!build()[i]};paint();e.preventDefault();
+});
+window.addEventListener("pointermove",function(e){
+  if(!drag)return;var i=cellAt(e.clientX,e.clientY);if(i>=0&&i!==drag.b){drag.b=i;paint()}
+});
+window.addEventListener("pointerup",function(){
+  if(!drag)return;
+  var lo=Math.min(drag.a,drag.b),hi=Math.max(drag.a,drag.b),er=drag.erase;drag=null;
+  if(er){
+    var map=build(),ids={};
+    for(var i=lo;i<=hi;i++)if(map[i])ids[map[i].id]=1;
+    tasks.forEach(function(t){if(ids[t.id]){t.s="";t.e=""}});
+    save();renderList();paint();
+  }else{
+    addTask("",hhmm(360+lo*10),hhmm(360+(hi+1)*10));
+  }
+});
+/* controls */
+var sw=$("sw");
+AREAS.forEach(function(a,k){var b=document.createElement("button");b.textContent=a;b.style.background="var(--c"+k+")";b.onclick=function(){area=k;mark()};sw.appendChild(b)});
+function mark(){Array.prototype.forEach.call(sw.children,function(b,k){b.className=k===area?"on":""})}
+$("dt").value=date;
+$("dt").onchange=function(){if($("dt").value){date=$("dt").value;load();renderList();paint()}};
+$("today").onclick=function(){date=ymd(new Date());$("dt").value=date;load();renderList();paint()};
+mark();load();renderList();paint();setInterval(paint,60000);
+})();
+</script>
+</body>
+</html>
