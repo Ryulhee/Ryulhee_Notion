@@ -102,6 +102,13 @@ button:hover{background:var(--card)}
 .cal .d .ok{position:absolute;right:2px;top:0;font-size:9px}
 .cnav{display:flex;gap:4px;align-items:center}
 .cnav button{padding:0 7px;border-radius:6px}
+/* sync status */
+.cs{display:flex;gap:6px;align-items:center;font-weight:400;letter-spacing:0}
+#sst{font-size:11px;color:var(--mut)}
+#sst.st-ok{color:#2f9e6b}#sst.st-busy{color:var(--acc)}#sst.st-err{color:#d9534f}
+.cs button{padding:1px 8px;font-size:11px}
+.mc label{font-size:12px;color:var(--mut);display:block;margin-bottom:2px}
+.mc input[type=text],.mc input[type=password]{width:100%}
 /* modal */
 .mo{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:10;display:flex;align-items:center;justify-content:center}
 .mo[hidden]{display:none}
@@ -116,7 +123,7 @@ button:hover{background:var(--card)}
   <div class="col"><h1>TIMETABLE</h1><div class="ttw"><table class="tt" id="tt"></table></div></div>
 
   <div class="col" id="plc">
-    <h1>DAILY PLANNER</h1>
+    <h1>DAILY PLANNER <span class="cs"><span id="sst">연동 안 됨</span><button id="cfgb" title="노션 연동 설정">🔗 노션 연동</button></span></h1>
     <div class="top">
       <input type="date" id="dt"><button id="today">오늘</button><button id="sort">시간순</button><button id="copyday" title="하루 기록을 마크다운으로 복사 → 노션에 붙여넣기">📋 하루 복사</button>
     </div>
@@ -448,14 +455,21 @@ var DEF=[["업무","#9fc3f7"],["관심사","#cdbff2"],["일기","#f9bfae"],["건
 var OLD=["#4c8bf5","#a56cf0","#f5a04c","#4cc38a","#9a9aa1"];
 var PAL=["#f7d58b","#f4a6c0","#9bdcd6","#b6c9f5","#f6b78d","#c8e6a0","#d9b8f0","#f0a1a1"];
 var tags=[],curTag="t0",date=ymd(new Date()),tasks=[],drag=null,activeId=null,cal={y:0,m:0},openNoteId=null;
+var days={},mem={},touched={},trash=[],cfg={u:"",k:"",fromHash:false},flushing=false,flT=0,tagT=0,pulled={};
 
 function ymd(d){return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())}
 function p2(n){return (n<10?"0":"")+n}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
-function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
-function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
-function allKeys(){var o=[];try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(/^pl-\d{4}-\d{2}-\d{2}$/.test(k))o.push(k.slice(3))}}catch(e){}return o}
+function lsGet(k){try{var v=localStorage.getItem(k);if(v!==null)return v}catch(e){}return mem[k]===undefined?null:mem[k]}
+function lsSet(k,v){mem[k]=v;try{localStorage.setItem(k,v)}catch(e){}}
+function allKeys(){
+  var o={},re=/^pl-\d{4}-\d{2}-\d{2}$/;
+  try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(re.test(k))o[k.slice(3)]=1}}catch(e){}
+  Object.keys(mem).forEach(function(k){if(re.test(k))o[k.slice(3)]=1});
+  Object.keys(days).forEach(function(k){o[k]=1});
+  return Object.keys(o);
+}
 
 /* ---------- tags ---------- */
 function loadTags(){
@@ -464,7 +478,7 @@ function loadTags(){
   if(a.length===5&&a.every(function(t,i){return t.id==="t"+i&&t.color===OLD[i]})){a.forEach(function(t,i){t.color=DEF[i][1]});tags=a;saveTags()}
   tags=a;if(!tag(curTag,true))curTag=tags[0].id;
 }
-function saveTags(){lsSet("pl-tags",JSON.stringify(tags))}
+function saveTags(){lsSet("pl-tags",JSON.stringify(tags));clearTimeout(tagT);tagT=setTimeout(function(){if(cfg.u&&cfg.k)api("setTags",{tags:tags}).catch(function(){})},1200)}
 function ink(c){var m=/^#?([0-9a-f]{6})$/i.exec(c);if(!m)return "#1c2541";var n=parseInt(m[1],16),r=n>>16,g=(n>>8)&255,b=n&255;return (0.299*r+0.587*g+0.114*b)>150?"#1c2541":"#fff"}
 function tag(id,strict){for(var i=0;i<tags.length;i++)if(tags[i].id===id)return tags[i];return strict?null:{id:id,name:"(삭제된 태그)",color:"#9a9aa1"}}
 
@@ -479,10 +493,144 @@ function migrate(arr){
     return t;
   });
 }
-function readDay(k){var a=[];try{a=JSON.parse(lsGet("pl-"+k)||"[]")}catch(e){}return migrate(a)}
-function load(){tasks=readDay(date)}
+function readDay(k){if(days[k])return days[k];var a=[];try{a=JSON.parse(lsGet("pl-"+k)||"[]")}catch(e){}days[k]=migrate(a);return days[k]}
+function load(){tasks=readDay(date);days[date]=tasks}
 var auxQ=0;
-function save(){lsSet("pl-"+date,JSON.stringify(tasks));if(!auxQ)auxQ=setTimeout(function(){auxQ=0;renderStats();renderCal()},0)}
+function save(){days[date]=tasks;lsSet("pl-"+date,JSON.stringify(tasks));touch(date);if(!auxQ)auxQ=setTimeout(function(){auxQ=0;renderStats();renderCal()},0)}
+
+
+/* ---------- Notion sync (via Apps Script) ---------- */
+function setSt(t,c){var e=$("sst");e.textContent=t;e.className="st-"+c}
+function loadCfg(){
+  var p={};location.hash.replace(/^#/,"").split("&").forEach(function(x){var i=x.indexOf("=");if(i>0)p[x.slice(0,i)]=decodeURIComponent(x.slice(i+1))});
+  var s=null;try{s=JSON.parse(lsGet("pl-cfg")||"null")}catch(e){}
+  cfg.u=p.u||(s&&s.u)||"";cfg.k=p.k||(s&&s.k)||"";cfg.fromHash=!!(p.u&&p.k);
+}
+function api(action,payload){
+  if(!cfg.u||!cfg.k)return Promise.reject(new Error("no-cfg"));
+  var body=JSON.stringify(Object.assign({key:cfg.k,action:action},payload||{}));
+  return fetch(cfg.u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:body})
+    .then(function(r){return r.json()})
+    .then(function(j){if(!j.ok)throw new Error(j.error||"error");return j.data});
+}
+function touch(d){
+  touched[d]=(touched[d]||0)+1;lsSet("pl-dirty",JSON.stringify(Object.keys(touched)));
+  if(cfg.u&&cfg.k)schedFlush(900);
+}
+function schedFlush(ms){clearTimeout(flT);flT=setTimeout(flush,ms)}
+function persist(d){lsSet("pl-"+d,JSON.stringify(readDay(d)))}
+function cleanSegs(t){return t.segs.map(function(g){return {s:norm(g.s),e:norm(g.e)}}).filter(function(g){return g.s&&g.e})}
+function sigOf(t,i){return JSON.stringify([t.t,!!t.d,tag(t.a).name,cleanSegs(t),i])}
+function flush(){
+  if(!cfg.u||!cfg.k)return;
+  if(flushing){schedFlush(1500);return}
+  var ds=Object.keys(touched);if(!ds.length&&!trash.length)return;
+  flushing=true;setSt("동기화 중…","busy");
+  var chain=Promise.resolve();
+  trash.slice().forEach(function(nid){
+    chain=chain.then(function(){return api("remove",{nid:nid})}).then(function(){trash=trash.filter(function(x){return x!==nid});lsSet("pl-trash",JSON.stringify(trash))});
+  });
+  ds.forEach(function(d){
+    chain=chain.then(function(){
+      var v=touched[d],arr=readDay(d),p=Promise.resolve();
+      arr.slice().forEach(function(t,i){
+        p=p.then(function(){
+          var sg=sigOf(t,i),step=Promise.resolve();
+          if(!t.nid||t.sig!==sg){
+            step=api("upsert",{task:{nid:t.nid||null,date:d,t:t.t,d:!!t.d,a:tag(t.a).name,segs:cleanSegs(t),o:i}}).then(function(r){t.nid=r.nid;t.sig=sg;persist(d)});
+          }
+          return step.then(function(){
+            if(t.nid&&(t.n||"")!==(t.np||"")){
+              var txt=t.n||"";
+              return api("setNote",{nid:t.nid,text:txt}).then(function(r){t.np=txt;if(r&&r.skipped)t.nw=1;persist(d)});
+            }
+          });
+        });
+      });
+      return p.then(function(){if(touched[d]===v){delete touched[d];lsSet("pl-dirty",JSON.stringify(Object.keys(touched)))}else schedFlush(900)});
+    });
+  });
+  chain.then(function(){setSt("노션 연동됨","ok")})
+    .catch(function(e){setSt("동기화 실패 · 곧 재시도","err");schedFlush(15000);try{console.error(e)}catch(x){}})
+    .then(function(){flushing=false});
+}
+function tagIdByName(n){
+  n=n||"";
+  for(var i=0;i<tags.length;i++){if(tags[i].name===n||(tags[i].alias||[]).indexOf(n)>=0)return tags[i].id}
+  if(!n){for(var j=0;j<tags.length;j++)if(tags[j].name==="개인")return tags[j].id;return tags[0].id}
+  var t={id:"t"+uid(),name:n,color:PAL[tags.length%PAL.length]};tags.push(t);saveTags();renderTags();return t.id;
+}
+function ymdAdd(k,n){var d=new Date(k+"T00:00:00");d.setDate(d.getDate()+n);return ymd(d)}
+function pull(from,to){
+  if(!cfg.u||!cfg.k)return Promise.resolve();
+  var ck=from+"|"+to;if(pulled[ck]&&Date.now()-pulled[ck]<45000)return Promise.resolve();
+  return api("range",{from:from,to:to}).then(function(list){
+    pulled[ck]=Date.now();
+    var by={};list.forEach(function(r){(by[r.date]=by[r.date]||[]).push(r)});
+    var ks={};Object.keys(by).forEach(function(k){ks[k]=1});
+    allKeys().forEach(function(k){if(k>=from&&k<=to)ks[k]=1});
+    var editing=document.activeElement&&(document.activeElement.closest&&(document.activeElement.closest("#list")||document.activeElement.closest("#mo")));
+    Object.keys(ks).forEach(function(k){
+      if(touched[k]||(k===date&&(flushing||editing)))return;
+      var local=readDay(k),remote=by[k]||[];
+      var keep=local.filter(function(t){return !t.nid});
+      var res=remote.map(function(r,i){
+        var old=local.filter(function(t){return t.nid===r.nid})[0]||{};
+        var t={id:old.id||uid(),nid:r.nid,d:r.d,t:r.t,a:tagIdByName(r.a),segs:r.segs.length?r.segs:[{s:"",e:""}],n:old.n||"",np:old.np||"",nw:old.nw};
+        t.sig=sigOf(t,i);return t;
+      }).concat(keep);
+      days[k]=res;lsSet("pl-"+k,JSON.stringify(res));if(k===date)tasks=res;
+    });
+    renderList();paint();renderStats();renderCal();setSt("노션 연동됨","ok");
+  });
+}
+function rangeFor(sc){
+  var d=new Date(date+"T00:00:00");
+  if(sc==="all")return ["2000-01-01","2100-12-31"];
+  if(sc==="day")return [date,date];
+  if(sc==="month"){return [ymd(new Date(d.getFullYear(),d.getMonth(),1)),ymd(new Date(d.getFullYear(),d.getMonth()+1,0))]}
+  var dow=(d.getDay()+6)%7,a=ymdAdd(date,-dow);return [a,ymdAdd(a,6)];
+}
+function refreshRemote(){
+  if(!cfg.u||!cfg.k)return;
+  var f=new Date(cal.y,cal.m,1);f.setDate(1-f.getDay());var from=ymd(f),to=ymdAdd(from,41);
+  var sr=rangeFor($("scope").value);
+  pull(date,date).then(function(){return pull(from,to)}).then(function(){return pull(sr[0],sr[1])})
+    .catch(function(e){setSt(navigator.onLine===false?"오프라인 · 로컬 저장 중":"연결 실패 · 로컬 저장 중","err")});
+}
+function initSync(){
+  try{trash=JSON.parse(lsGet("pl-trash")||"[]")}catch(e){trash=[]}
+  try{JSON.parse(lsGet("pl-dirty")||"[]").forEach(function(k){touched[k]=1})}catch(e){}
+  if(!cfg.u||!cfg.k){setSt("연동 안 됨","off");return}
+  setSt("연결 중…","busy");
+  api("ping").then(function(){return api("getTags")}).then(function(r){
+    if(r.tags&&r.tags.length){tags=r.tags;lsSet("pl-tags",JSON.stringify(tags));if(!tag(curTag,true))curTag=tags[0].id;renderTags()}
+    else api("setTags",{tags:tags}).catch(function(){});
+    setSt("노션 연동됨","ok");
+    flush();refreshRemote();
+  }).catch(function(e){setSt(String(e.message)==="bad key"?"키가 맞지 않아요":"연결 실패 · 로컬 저장 중","err")});
+}
+function openCfg(){
+  var mc=$("mc");
+  mc.innerHTML='<div class="row"><b style="flex:1">노션 연동 설정</b><button id="mx">닫기</button></div>'+
+    '<div><label>Apps Script 웹 앱 URL</label><input type="text" id="cu" placeholder="https://script.google.com/macros/s/.../exec"></div>'+
+    '<div><label>API 키 (Apps Script 속성에 넣은 API_KEY와 같은 값)</label><input type="password" id="ck" autocomplete="off"></div>'+
+    '<div class="row"><button class="p" id="csave">저장하고 연결 테스트</button><span class="meta" id="mst"></span></div>'+
+    '<div class="meta">'+(cfg.fromHash?"지금은 주소(#) 값으로 연결돼 있어요. 노션 임베드 주소에 #u=URL&k=키 를 붙이면 저장소 없이도 연결됩니다.":"이 브라우저에만 저장돼요. 노션 임베드에서는 임베드 주소 뒤에 #u=URL&k=키 를 붙이는 방법을 권장해요.")+'</div>';
+  $("cu").value=cfg.u;$("ck").value=cfg.k;
+  $("mx").onclick=function(){$("mo").hidden=true};
+  $("csave").onclick=function(){
+    cfg.u=$("cu").value.trim();cfg.k=$("ck").value.trim();cfg.fromHash=false;
+    lsSet("pl-cfg",JSON.stringify({u:cfg.u,k:cfg.k}));
+    $("mst").textContent="테스트 중…";
+    api("ping").then(function(r){
+      $("mst").textContent="연결됨 ✓ ("+(r.db||"DB")+")";
+      allKeys().forEach(function(k){touched[k]=(touched[k]||0)+1});lsSet("pl-dirty",JSON.stringify(Object.keys(touched)));
+      pulled={};initSync();
+    }).catch(function(e){$("mst").textContent="실패: "+e.message});
+  };
+  $("mo").hidden=false;
+}
 
 /* ---------- time helpers ---------- */
 function norm(v){
@@ -556,7 +704,10 @@ function renderPop(){
     var col=r.children[0],nm=r.children[1],del=r.children[2];
     col.value=t.color;nm.value=t.name;
     col.oninput=function(){t.color=this.value;saveTags();renderAll(true)};
+    var oldName=t.name;
+    nm.onfocus=function(){oldName=t.name};
     nm.oninput=function(){t.name=this.value||"태그";saveTags();renderTags();renderList();renderStats();renderCal()};
+    nm.onchange=function(){if(oldName&&oldName!==t.name){t.alias=(t.alias||[]).concat(oldName);saveTags();allKeys().forEach(function(k){if(readDay(k).some(function(x){return x.a===t.id}))touch(k)})}oldName=t.name};
     var inUse=!!used[t.id]||tags.length<2;
     del.disabled=inUse;del.style.opacity=inUse?.3:1;del.title=inUse?"사용 중이거나 마지막 태그라 삭제할 수 없어요":"삭제";
     del.onclick=function(){tags=tags.filter(function(x){return x!==t});if(curTag===t.id)curTag=tags[0].id;saveTags();renderAll(true);renderPop()};
@@ -596,7 +747,7 @@ function renderList(focusId,focusSeg){
     var dot=q(".dot");dot.style.background=tg.color;dot.title=tg.name+" (클릭해서 변경)";
     dot.onclick=function(){var i=0;tags.forEach(function(x,k){if(x.id===t.a)i=k});t.a=tags[(i+1)%tags.length].id;save();renderList();paint()};
     q(".plus").onclick=function(){t.segs.push({s:"",e:""});save();renderList(t.id,t.segs.length-1)};
-    q(".x").onclick=function(){tasks=tasks.filter(function(x){return x!==t});if(activeId===t.id)activeId=null;save();renderList();paint();hint()};
+    q(".x").onclick=function(){if(t.nid){trash.push(t.nid);lsSet("pl-trash",JSON.stringify(trash))}tasks=tasks.filter(function(x){return x!==t});if(activeId===t.id)activeId=null;save();if(cfg.u&&cfg.k)schedFlush(300);renderList();paint();hint()};
     var s0=t.segs[0];
     var rs=q(".s"),re=q(".e");
     segInputs(t,s0,r1);
@@ -656,13 +807,19 @@ function openNote(id){
   mc.innerHTML='<div class="row"><input type="text" id="mt" style="flex:1" placeholder="제목 (예: 주간 미팅)"><button id="mx">닫기</button></div>'+
     '<div class="meta">'+esc(date)+' · '+esc(tag(t.a).name)+(segText(t)?' · '+esc(segText(t)):'')+'</div>'+
     '<textarea id="mb" placeholder="무슨 일이 있었는지 적어 두세요 (미팅 내용, 결정 사항 등)"></textarea>'+
-    '<div class="row"><button class="p" id="mcopy">노션용으로 복사</button><span class="meta" id="mst">복사 후 노션 새 페이지에 붙여넣기(Ctrl/Cmd+V)</span></div>';
+    '<div class="row"><button class="p" id="mcopy">노션용으로 복사</button><span class="meta" id="mst">'+(cfg.u&&cfg.k?'메모는 이 할 일의 노션 페이지 본문에 저장돼요':'노션 연동 전: 복사 후 노션에 붙여넣기(Ctrl/Cmd+V)')+'</span></div>';
   $("mt").value=t.t||"";$("mb").value=t.n||"";
   $("mt").oninput=function(){t.t=this.value;save()};
   $("mb").oninput=function(){t.n=this.value;save()};
   $("mx").onclick=closeNote;
   $("mcopy").onclick=function(){copyText(mdTask(t),function(ok){$("mst").textContent=ok?"복사됨 — 노션 새 페이지에 붙여넣으세요":"복사가 막혀 있어요. 본문을 직접 선택해 복사해 주세요"})};
   $("mo").hidden=false;$("mb").focus();
+  if(cfg.u&&cfg.k&&t.nid){
+    api("getNote",{nid:t.nid}).then(function(r){
+      if((t.n||"")===(t.np||"")&&r.text!==(t.n||"")&&openNoteId===id){t.n=t.np=r.text;lsSet("pl-"+date,JSON.stringify(tasks));if($("mb"))$("mb").value=r.text}
+    }).catch(function(){});
+  }
+  if(t.nw&&$("mst"))$("mst").textContent="노션 쪽 본문에 서식이 있어 덮어쓰지 않았어요(이 메모는 플래너에만 저장)";
 }
 function closeNote(){$("mo").hidden=true;openNoteId=null;renderList()}
 $("mo").addEventListener("pointerdown",function(e){if(e.target===$("mo"))closeNote()});
@@ -744,21 +901,22 @@ function renderCal(){
 }
 function goDate(k){
   date=k;$("dt").value=k;var d=new Date(k+"T00:00:00");cal={y:d.getFullYear(),m:d.getMonth()};
-  activeId=null;load();renderList();paint();renderStats();renderCal();
+  activeId=null;load();renderList();paint();renderStats();renderCal();refreshRemote();
 }
-$("pm").onclick=function(){cal.m--;if(cal.m<0){cal.m=11;cal.y--}renderCal()};
-$("nm").onclick=function(){cal.m++;if(cal.m>11){cal.m=0;cal.y++}renderCal()};
+$("pm").onclick=function(){cal.m--;if(cal.m<0){cal.m=11;cal.y--}renderCal();refreshRemote()};
+$("nm").onclick=function(){cal.m++;if(cal.m>11){cal.m=0;cal.y++}renderCal();refreshRemote()};
 $("dt").onchange=function(){if($("dt").value)goDate($("dt").value)};
 $("today").onclick=function(){goDate(ymd(new Date()))};
-$("scope").onchange=renderStats;
+$("scope").onchange=function(){renderStats();refreshRemote()};
+$("cfgb").onclick=openCfg;
 $("tgb").onclick=function(){var p=$("pop");p.hidden=!p.hidden;if(!p.hidden)renderPop()};
 
 function renderAll(tagsOnly){renderTags();renderList();paint();renderStats();renderCal()}
 
 try{$("tmr").srcdoc=$("tmsrc").textContent.replace(/<\\\/script/g,"</script")}catch(e){}
-loadTags();
+loadTags();loadCfg();
 (function(){var d=new Date();cal={y:d.getFullYear(),m:d.getMonth()}})();
-$("dt").value=date;load();renderAll();setInterval(paint,60000);
+$("dt").value=date;load();renderAll();initSync();setInterval(paint,60000);setInterval(function(){pulled={};refreshRemote()},90000);
 })();
 </script>
 </body>
