@@ -272,15 +272,15 @@ details.card>.in{padding:0 12px 12px}
         <ul class="list sc" id="sList" style="max-height:190px"></ul>
       </section>
       <section class="card">
-        <h2>월급 · 지출 항목 설정 <small>색깔은 눌러서 바꿔요</small></h2>
+        <h2>지출 항목 · 색깔 <small>색깔은 눌러서 바꿔요</small></h2>
         <div class="two2">
-          <div><small>월급 (나눠 들어오는 만큼 추가)</small><div id="incomes" style="margin-top:6px"></div><button class="btn add" id="addInc">+ 월급 추가</button></div>
+          <div id="incomes" hidden></div><button id="addInc" type="button" hidden></button>
           <div><small>지출 항목 · 색깔</small><div id="cats" style="margin-top:6px"></div><button class="btn add" id="addCat">+ 항목 추가</button></div>
         </div>
       </section>
     </div>
     <section class="card c6">
-      <h2>내 돈 · 저금통장 <small>저금은 따로 모아요</small></h2>
+      <h2>내 돈 · 저금통장 <small>넣은 돈은 그 달 수입으로 잡혀요</small></h2>
       <div class="two"><div><small>내 돈</small><b class="num" id="cBal"></b></div><div><small>저금통장</small><b class="num pos" id="cSav"></b></div></div>
       <div class="ul" id="cAccts" style="margin:-2px 0 8px"></div>
       <div class="row">
@@ -429,16 +429,29 @@ function split(it){
   return r;
 }
 
+/* ---------- 수입 = 내 돈에 넣은 기록 ---------- */
+function incOf(ym){var s=0;S.log.forEach(function(l){if(l.k==='in'&&l.t.slice(0,7)===ym)s+=l.a});return s}
+function projIncomes(){ /* 예측용: 가장 최근 지난 달(없으면 이번 달)의 입금을 매달 반복 */
+  var cur=dstr(today0()).slice(0,7),months={},pick=null;
+  S.log.forEach(function(l){if(l.k!=='in'||!(l.a>0))return;var m=l.t.slice(0,7);(months[m]=months[m]||[]).push(l)});
+  var ks=Object.keys(months).sort();
+  for(var i=ks.length-1;i>=0;i--){if(ks[i]<cur){pick=ks[i];break}}
+  if(!pick&&months[cur])pick=cur;
+  return pick?months[pick].map(function(l){return{amount:l.a,day:+l.t.slice(8,10)||1}}):[];
+}
+function projInc(){return projIncomes().reduce(function(s,x){return s+x.amount},0)}
+function incFor(ym){var cur=dstr(today0()).slice(0,7);return ym<cur?incOf(ym):Math.max(incOf(ym),projInc())}
+
 /* ---------- simulation ---------- */
 function sim(until,fails){
-  var cur=today0(), bal=+S.balance||0, acBase=acctTotal(), locked=acBase, snaps=[], stock={};
+  var cur=today0(), bal=+S.balance||0, acBase=acctTotal(), locked=acBase, snaps=[], stock={}, pinc=projIncomes(), curYm=dstr(cur).slice(0,7), gotCur=incOf(curYm)>0;
   var st=S.items.map(function(i){return{i:i,rem:i.balance||0,k:0,paid:false}});
   S.items.forEach(function(i){if(stocked(i)){stock[i.id]=heldNow(i);if(isSave(i))locked+=stock[i.id]}});
   var debt=function(){return st.reduce(function(s,x){return s+(x.i.type==='loan'?Math.max(0,x.rem):0)},0)};
   while(cur<until){
     cur=new Date(cur.getFullYear(),cur.getMonth(),cur.getDate()+1);
     var y=cur.getFullYear(),m=cur.getMonth(),d=cur.getDate(),dm=dim(y,m);
-    S.incomes.forEach(function(inc){if(d===Math.min(inc.day||1,dm))bal+=(+inc.amount||0)});
+    pinc.forEach(function(inc){if(gotCur&&dstr(cur).slice(0,7)===curYm)return;if(d===Math.min(inc.day||1,dm))bal+=(+inc.amount||0)});
     st.forEach(function(x){
       var it=x.i,e=endIdx(it);
       if(it.type==='card'&&x.paid&&d===Math.min(it.refundDay||it.day||1,dm)&&!(e!==null&&ymIdx(cur)>e))bal+=cardRefund(it);
@@ -494,7 +507,7 @@ function monthlyAt(it,mi){ /* mi 달에 나가는 돈 (끝난 항목은 0) */
 }
 function usage(ym){
   var mi=(+ym.slice(0,4))*12+(+ym.slice(5,7)-1);
-  var inc=S.incomes.reduce(function(s,x){return s+(+x.amount||0)},0),fixed=0,saveAuto=0;
+  var inc=incFor(ym),fixed=0,saveAuto=0;
   S.items.forEach(function(it){var a=monthlyAt(it,mi);if(a<=0)return;if(isSave(it))saveAuto+=a;else fixed+=a});
   var byCat={},soso=0,inv=0,saveManual=0;
   S.log.forEach(function(l){
@@ -519,8 +532,8 @@ function segDots(svg,segs,N,cols,p,r){
 function renderUsage(u){
   segDots($('usage'),u.segs,100,20,11,4.2);
   $('usageNote').textContent=viewYm.replace('-','.')+' · 점 1개 = 수입 1%';
-  $('usageLeg').innerHTML=u.segs.filter(function(s){return s.v>0}).map(function(s){return '<span><i style="background:'+s.color+'"></i>'+esc(s.name)+' <b class="num">'+man(s.v)+'</b></span>'}).join('')||'<span class="mut">월급과 고정 항목을 넣으면 점이 채워져요</span>';
-  $('usage2').innerHTML=(u.over>0?'<span class="neg"><b>수입보다 '+won(u.over)+' 더 썼어요</b></span> · ':'')+'지출 중 소비 <b class="num" style="color:var(--fg)">'+man(u.soso)+'</b> · 투자 <b class="num" style="color:var(--fg)">'+man(u.inv)+'</b>';
+  $('usageLeg').innerHTML=u.segs.filter(function(s){return s.v>0}).map(function(s){return '<span><i style="background:'+s.color+'"></i>'+esc(s.name)+' <b class="num">'+man(s.v)+'</b></span>'}).join('')||'<span class="mut">내 돈에 월급을 넣으면 점이 채워져요</span>';
+  $('usage2').innerHTML=(u.inc<=0?'<span class="neg"><b>내 돈 넣기로 월급을 기록하면 남은 돈이 계산돼요</b></span> · ':u.over>0?'<span class="neg"><b>수입보다 '+won(u.over)+' 더 썼어요</b></span> · ':'')+'지출 중 소비 <b class="num" style="color:var(--fg)">'+man(u.soso)+'</b> · 투자 <b class="num" style="color:var(--fg)">'+man(u.inv)+'</b>';
 }
 
 /* ---------- 고정 항목 / 대출·카드 ---------- */
@@ -531,7 +544,7 @@ function renderFixed(){
   $('fixSum').innerHTML='<span>고정지출 합계</span><b class="num">'+won(tot)+'</b>'+(sv?'<span>저금 자동이체 <b class="num">'+won(sv)+'</b></span>':'');
 }function renderDebts(){
   var loans=S.items.filter(function(i){return i.type==='loan'&&i.balance>0}),cards=S.items.filter(function(i){return i.type==='card'});
-  var debtSum=0,intSum=0,h='',incSum=S.incomes.reduce(function(s,x){return s+(+x.amount||0)},0);
+  var debtSum=0,intSum=0,h='',incSum=incFor(dstr(today0()).slice(0,7));
   loans.forEach(function(it){
     var p=plan(it),nd=nextDue(it),L=loanFirst(it),il=loanInterestLeft(it),base=ymIdx(today0());
     debtSum+=+it.balance;if(il)intSum+=il;
@@ -665,7 +678,7 @@ function fnc(k){var n=FN.find(function(x){return x.k===k});return n?n.c:'var(--i
 function cntType(t){return S.items.filter(function(i){return i.type===t}).length}
 function flowCalc(ym){
   var mi=(+ym.slice(0,4))*12+(+ym.slice(5,7)-1),g={loan:0,ins:0,cy:0,sv:0,spend:0,rec:0,man:0},
-      inc=S.incomes.reduce(function(s,x){return s+(+x.amount||0)},0);
+      inc=incFor(ym);
   S.items.forEach(function(it){
     var a=monthlyAt(it,mi);if(a<=0)return;
     var k=it.type==='loan'?'loan':it.type==='insurance'?'ins':it.type==='cheongyak'?'cy':it.type==='saving'?'sv':'spend';
@@ -699,7 +712,7 @@ function drawSankey(fc){
   var nodes=FN.map(function(n){return{k:n.k,name:n.name,c:n.c,v:n.k==='remain'?fc.remain:fc.g[n.k],txt:fStockTxt(n.k,fc.st)}})
     .filter(function(n){return n.v>0||has[n.k]});
   if(fsel!=='all'&&!nodes.some(function(n){return n.k===fsel}))fsel='all';
-  if(!nodes.length){svg.setAttribute('viewBox','0 0 700 40');svg.innerHTML='<text x="0" y="24">월급과 고정 항목을 넣으면 흐름도가 그려져요</text>';return}
+  if(!nodes.length){svg.setAttribute('viewBox','0 0 700 40');svg.innerHTML='<text x="0" y="24">내 돈에 월급을 넣으면 흐름도가 그려져요</text>';return}
   var y=top,ly=top,o='',lh=0;
   nodes.forEach(function(n){n.h=n.v>0?Math.max(5,n.v*scale):3;if(n.v>0)lh+=n.h});
   o+='<text class="fn" x="0" y="12">월 수입 '+won(fc.inc)+(fc.over>0?' <tspan class="fs">· 수입보다 '+won(fc.over)+' 더 나가요</tspan>':'')+'</text>'+
@@ -768,7 +781,7 @@ function renderFDet(fc,sr){
 }
 function renderFlow2(){
   var fc=flowCalc(viewYm),H=S.horizon||12,t=today0(),until=new Date(t.getFullYear(),t.getMonth()+H,0),sr=sim(until);
-  $('fnote').textContent=viewYm.replace('-','.')+' 기준 · 월급이 어디로 나뉘는지 · 눌러서 자세히';
+  $('fnote').textContent=viewYm.replace('-','.')+' 기준 · 들어온 돈이 어디로 나뉘는지 · 눌러서 자세히';
   drawSankey(fc);
   if(!keepDet)renderFDet(fc,sr);
   var sn=sr.snaps.slice(0,H),mx=0;
@@ -800,7 +813,7 @@ function calc(){
   var sums={lost:0,daily:0,locked:0};
   var sv0=0;
   S.items.forEach(function(it){if(!activeNow(it))return;if(isSave(it)){sv0+=monthly(it);return}var s=split(it);for(var k in s)sums[k]+=s[k]});
-  var tot=sums.lost+sums.daily+sums.locked, inc=S.incomes.reduce(function(s,x){return s+(+x.amount||0)},0);
+  var tot=sums.lost+sums.daily+sums.locked, inc=incFor(dstr(today0()).slice(0,7));
   return{sums:sums,tot:tot,inc:inc,left:inc-tot,save:sv0};
 }
 function riskCalc(c){
@@ -849,6 +862,10 @@ function riskCalc(c){
 }
 function plain(h){var d=document.createElement('div');d.innerHTML=h;return d.textContent}
 function renderRisk(c){
+  if(!(c.inc>0)){
+    ['sRiskBox','hRiskBox'].forEach(function(id){var el=$(id);el.style.setProperty('--rc','var(--gray)');el.title='내 돈 넣기로 월급을 기록하면 위험도를 계산해요'});
+    $('sFace').innerHTML=face(2);$('hFace').innerHTML=face(2);$('sRisk').textContent='입금 기록 필요';$('hRisk').textContent='입금 기록 필요';return;
+  }
   var r=riskCalc(c),col='var(--r'+r.lvl+')';
   var e0=r.events[0],txt=e0&&e0.days<=90?(e0.loan?'연체 위험 ':'납입 위험 ')+e0.t.split(' ')[0]:RN[r.lvl];
   var tip=RN[r.lvl]+' · 안전 점수 '+r.score+'/100'+r.events.slice(0,4).concat(r.why.slice(0,3)).map(function(w){return '\n· '+plain(w.t)}).join('');
@@ -863,7 +880,8 @@ function renderTop(u){
   $('sLeg').innerHTML='<span><i style="background:var(--ink)"></i>쓴 돈 <b class="num">'+man(spent)+'</b></span><span><i style="background:var(--locked)"></i>저금 <b class="num">'+man(u.save)+'</b></span><span><i style="background:var(--gray)"></i>남은 돈 <b class="num">'+man(u.remain)+'</b></span><span>이번 달</span>';
   $('hCash').innerHTML=bigWon(S.balance);$('hSav').innerHTML=bigWon(acctTotal());$('hInc').innerHTML=bigWon(u.inc);
   var l=$('hLeft');l.innerHTML=bigWon(u.remain);l.className='num'+(u.over>0?' neg':'');
-  if(u.over>0)l.innerHTML='−'+bigWon(u.over);
+  if(u.inc<=0){l.className='num';l.innerHTML='<i style="font-style:normal;font-size:12px;font-weight:500;color:var(--muted)">월급을 기록해 주세요</i>'}
+  else if(u.over>0)l.innerHTML='−'+bigWon(u.over);
 }
 
 /* ---------- items editor ---------- */
