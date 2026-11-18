@@ -159,6 +159,9 @@ details.card>.in{padding:0 12px 12px}
 .why li.ok i{background:var(--locked)}
 .mbar{height:8px;border-radius:99px;background:var(--soft);overflow:hidden;margin:6px 0 2px}
 .mbar>div{height:100%;border-radius:99px;transition:width .4s}
+#sync[data-c=ok]{color:var(--locked)}#sync[data-c=err]{color:var(--lost)}
+#cfgBox{margin-top:8px}
+#cfgBox input{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:5px 8px;min-width:0}
 .mnav{display:flex;align-items:center;gap:6px}
 .mnav button{border:1px solid var(--line);background:var(--card);border-radius:999px;width:28px;height:28px;cursor:pointer;padding:0}
 .mnav b{min-width:64px;text-align:center;font-size:15px;font-weight:800}
@@ -281,8 +284,16 @@ details.card>.in{padding:0 12px 12px}
       <ul class="list sc" id="cLog" style="max-height:100px"></ul>
     </section>
   </div>
-  <p class="foot">지금 보이는 숫자는 예시예요. 고치면 이 브라우저에 저장돼요.
+  <p class="foot"><span id="sync" data-c="off">연동 안 됨</span> · <button class="btn" id="cfgBtn" style="padding:1px 10px;font-size:11px">노션 연동 설정</button> · 처음 숫자는 예시예요.
     <button class="btn" id="reset" style="padding:1px 10px;font-size:11px">예시로 되돌리기</button></p>
+  <div class="card" id="cfgBox" hidden>
+    <div class="two2">
+      <div><small>Apps Script 웹 앱 URL</small><input id="cu" type="text" style="width:100%" placeholder="https://script.google.com/macros/s/.../exec"></div>
+      <div><small>API 키</small><input id="ck" type="password" autocomplete="off" style="width:100%"></div>
+    </div>
+    <div class="row" style="margin:8px 0 4px"><button class="btn primary" id="csave">저장하고 연결 테스트</button><span class="mut" id="cmsg"></span></div>
+    <small>노션 임베드에서는 임베드 주소 뒤에 #u=웹앱URL&amp;k=키 를 붙이면 설정 없이 연결돼요.</small>
+  </div>
 </div>
 
 <script>
@@ -312,6 +323,7 @@ if(!S.log)S.log=[];
 if(!S.incomes)S.incomes=[{id:'i1',name:'월급',amount:+S.income||0,day:+S.incomeDay||25}];
 if(!S.cats)S.cats=defCats();
 if(S.savings==null)S.savings=0;
+if(!S._d)S._d={up:{},rm:{},st:0};
 S.items.forEach(function(it){if(it.type==='loan'&&it.id==='a5'&&!(it.term>0)){it.repay='equal_pi';it.rate=4.5;it.term=36;it.amount=0;it.interest=0}});
 if(!S.cardSeeded){S.cardSeeded=1;if(!S.items.some(function(i){return i.type==='card'}))S.items.push(exCard())}
 S.log.forEach(function(l){ /* 예전 기록(부호 있는 금액) 변환 */
@@ -516,7 +528,7 @@ function applyLog(l,s){
   else if(l.k==='save'){S.balance-=s*l.a;S.savings+=s*l.a}
   else S.balance+=s*l.a;
 }
-function addLog(o){o.id='l'+Date.now()+Math.floor(Math.random()*99);S.log.unshift(o);applyLog(o,1);S.log=S.log.slice(0,400);renderMoney();refresh()}
+function addLog(o){o.id='l'+Date.now()+Math.floor(Math.random()*99);S.log.unshift(o);markUp(o.id);applyLog(o,1);S.log=S.log.slice(0,400);renderMoney();refresh()}
 function renderSpend(){
   var sel=$('sCat'),cur=sel.value;
   sel.innerHTML=S.cats.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+'</option>'}).join('');
@@ -736,6 +748,7 @@ var openId=null;
 function renderItems(){$('items').innerHTML=S.items.slice().sort(function(a,b){return a.day-b.day}).map(function(it){return renderItem(it,it.id===openId)}).join('')}
 
 function refresh(){
+  var sg=JSON.stringify(core());if(sg!==lastSig){lastSig=sg;if(booted)markState()}
   save();var c=calc(),cur=dstr(today0()).slice(0,7),u=usage(cur);
   renderTop(u);renderUsage(viewYm===cur?u:usage(viewYm));renderFixed();renderDebts();renderRisk(c);renderFlow();
 }
@@ -805,7 +818,7 @@ $('sAmt').addEventListener('keydown',function(e){if(e.key==='Enter')$('sBtn').cl
 function delLog(e){
   if(!e.target.closest('button'))return;
   var li=e.target.closest('li'),i=S.log.findIndex(function(l){return l.id===li.dataset.id});
-  if(i<0)return;applyLog(S.log[i],-1);S.log.splice(i,1);renderMoney();refresh();
+  if(i<0)return;markRm(S.log[i].id);applyLog(S.log[i],-1);S.log.splice(i,1);renderMoney();refresh();
 }
 $('sList').addEventListener('click',delLog);
 $('cLog').addEventListener('click',delLog);
@@ -852,19 +865,112 @@ $('hz').addEventListener('click',function(e){var b=e.target.closest('button');if
 $('flow').addEventListener('click',function(e){var g=e.target.closest('[data-d]');if(g){S.target=g.dataset.d;refresh()}});
 $('reset').addEventListener('click',function(){
   var b=this;if(!b.dataset.sure){b.dataset.sure=1;b.textContent='한 번 더 누르면 초기화';setTimeout(function(){delete b.dataset.sure;b.textContent='예시로 되돌리기'},3000);return}
-  S=example();openId=null;renderItems();renderSettings();renderMoney();refresh();delete b.dataset.sure;b.textContent='예시로 되돌리기';
+  var oldIds=S.log.map(function(l){return l.id});
+  S=example();S._d={up:{},rm:{},st:1};oldIds.forEach(function(id){S._d.rm[id]=1});S.updated=Date.now();
+  openId=null;renderItems();renderSettings();renderMoney();lastSig=JSON.stringify(core());refresh();schedFlush(900);delete b.dataset.sure;b.textContent='예시로 되돌리기';
 });
 
+/* ---------- 노션 연동 (Apps Script) ---------- */
+var cfg={u:'',k:'',fromHash:false},booted=false,lastSig='',flT=0,flushing=false,pulledAt=0;
+function hashParams(){
+  var p={};
+  location.hash.replace(/^#/,'').split('&').forEach(function(x){
+    if(!x)return;var i=x.indexOf('=');
+    if(i>0)p[x.slice(0,i)]=decodeURIComponent(x.slice(i+1));else p[x]=1;
+  });
+  return p;
+}
+function loadCfg(){
+  var p=hashParams(),s=null;
+  try{s=JSON.parse(localStorage.getItem(KEY+':cfg')||'null')}catch(e){}
+  cfg.u=p.u||(s&&s.u)||'';cfg.k=p.k||(s&&s.k)||'';cfg.fromHash=!!(p.u&&p.k);
+}
+function updateLinks(){
+  var base=location.href.split('#')[0],h='#detail'+(cfg.fromHash?'&u='+encodeURIComponent(cfg.u)+'&k='+encodeURIComponent(cfg.k):'');
+  if(/github\.io$|^localhost$|^$/.test(location.hostname))$('strip').href=base+h;
+}
+function setSt(t,c){var e=$('sync');if(e){e.textContent=t;e.dataset.c=c}}
+function api(action,payload){
+  if(!cfg.u||!cfg.k)return Promise.reject(new Error('no-cfg'));
+  return fetch(cfg.u,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({key:cfg.k,action:action},payload||{}))})
+    .then(function(r){return r.json()})
+    .then(function(j){if(!j.ok)throw new Error(j.error||'error');return j.data});
+}
+function core(){return{balance:S.balance,savings:S.savings,incomes:S.incomes,cats:S.cats,items:S.items,horizon:S.horizon}}
+function stateBlob(){return Object.assign(core(),{updated:S.updated||0})}
+function markState(){S._d.st=1;S.updated=Date.now();save();schedFlush(900)}
+function markUp(id){S._d.up[id]=1;delete S._d.rm[id];schedFlush(900)}
+function markRm(id){delete S._d.up[id];S._d.rm[id]=1;schedFlush(900)}
+function schedFlush(ms){if(!cfg.u||!cfg.k)return;clearTimeout(flT);flT=setTimeout(flush,ms)}
+function wireEntry(l){return Object.assign({},l,{catName:l.cat?catOf(l.cat).name:''})}
+function flush(){
+  if(!cfg.u||!cfg.k||!booted)return;
+  if(flushing){schedFlush(1500);return}
+  var d=S._d,ups=Object.keys(d.up),rms=Object.keys(d.rm),st=d.st;
+  if(!ups.length&&!rms.length&&!st)return;
+  flushing=true;setSt('동기화 중…','busy');
+  var chain=Promise.resolve(),chunks=[],failed=false;
+  for(var i=0;i<Math.max(ups.length,rms.length,1);i+=20)chunks.push({u:ups.slice(i,i+20),r:rms.slice(i,i+20)});
+  chunks.forEach(function(c,ci){
+    chain=chain.then(function(){
+      var last=ci===chunks.length-1,snap=S.updated;
+      var entries=c.u.map(function(id){var l=S.log.find(function(x){return x.id===id});return l?wireEntry(l):null}).filter(Boolean);
+      return api('sync',{state:last&&st?stateBlob():null,upserts:entries,removes:c.r}).then(function(){
+        c.u.forEach(function(id){delete d.up[id]});c.r.forEach(function(id){delete d.rm[id]});
+        if(last&&st&&S.updated===snap)d.st=0;
+        save();
+      });
+    });
+  });
+  chain.then(function(){setSt('노션 연동됨','ok')})
+    .catch(function(e){failed=true;setSt(String(e.message)==='bad key'?'키가 맞지 않아요':'동기화 실패 · 곧 재시도','err');schedFlush(15000)})
+    .then(function(){flushing=false;if(!failed&&(Object.keys(d.up).length||Object.keys(d.rm).length||d.st))schedFlush(1200)});
+}
+function pushAll(){
+  S.log.forEach(function(l){S._d.up[l.id]=1});
+  S._d.st=1;S.updated=S.updated||Date.now();save();flush();
+}
+function applyRemote(r){
+  var rs=r.state;booted=false;
+  S.balance=rs.balance;S.savings=rs.savings;
+  if(rs.incomes)S.incomes=rs.incomes;if(rs.cats)S.cats=rs.cats;if(rs.items)S.items=rs.items;if(rs.horizon)S.horizon=rs.horizon;
+  S.updated=rs.updated||0;
+  S.log=(r.log||[]).map(function(e){var x=Object.assign({},e);delete x.catName;return x})
+    .sort(function(a,b){return a.t<b.t?1:a.t>b.t?-1:(a.id<b.id?1:-1)});
+  S._d={up:{},rm:{},st:0};
+  renderItems();renderSettings();renderMoney();lastSig=JSON.stringify(core());refresh();save();booted=true;
+}
+function pullRemote(){
+  if(!cfg.u||!cfg.k){setSt('연동 안 됨','off');return Promise.resolve()}
+  setSt('연결 중…','busy');
+  return api('load').then(function(r){
+    pulledAt=Date.now();
+    var d=S._d,dirty=Object.keys(d.up).length||Object.keys(d.rm).length||d.st;
+    if(!r.state){if(S.updated||S.log.length)pushAll()}
+    else if(dirty)flush();
+    else if((r.state.updated||0)>(S.updated||0))applyRemote(r);
+    setSt('노션 연동됨','ok');
+  }).catch(function(e){setSt(String(e.message)==='bad key'?'키가 맞지 않아요':navigator.onLine===false?'오프라인 · 로컬 저장 중':'연결 실패 · 로컬 저장 중','err')});
+}
+$('cfgBtn').addEventListener('click',function(){var b=$('cfgBox');b.hidden=!b.hidden;$('cu').value=cfg.u;$('ck').value=cfg.k});
+$('csave').addEventListener('click',function(){
+  cfg.u=$('cu').value.trim();cfg.k=$('ck').value.trim();cfg.fromHash=false;
+  try{localStorage.setItem(KEY+':cfg',JSON.stringify({u:cfg.u,k:cfg.k}))}catch(e){}
+  $('cmsg').textContent='테스트 중…';
+  api('ping').then(function(r){$('cmsg').textContent='연결됨 ✓ ('+(r.db||'DB')+')';updateLinks();pullRemote()})
+    .catch(function(e){$('cmsg').textContent='실패: '+e.message});
+});
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&Date.now()-pulledAt>30000)pullRemote()});
+
 function view(){
-  var d=location.hash==='#detail';
+  var d=!!hashParams().detail;
   document.documentElement.dataset.v=d?'detail':'strip';
   $('stripWrap').hidden=d;$('dash').hidden=!d;
 }
 window.addEventListener('hashchange',view);
 var d=today0();$('today').textContent='오늘 '+(d.getMonth()+1)+'월 '+d.getDate()+'일 기준';
-/* GitHub Pages 등에 올렸을 때: 띠를 누르면 같은 파일의 #detail을 새 탭으로 */
-if(/github\.io$|^localhost$|^$/.test(location.hostname))$('strip').href=location.href.split('#')[0]+'#detail';
 $('mLabel').textContent=viewYm.replace('-','.');
-view();renderItems();renderSettings();renderMoney();refresh();
+loadCfg();updateLinks();
+view();renderItems();renderSettings();renderMoney();lastSig=JSON.stringify(core());refresh();booted=true;pullRemote();
 })();
 </script>
