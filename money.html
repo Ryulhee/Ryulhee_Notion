@@ -945,7 +945,7 @@ function pullRemote(){
     setSt('노션 연동됨','ok');
   }).catch(function(e){setSt(String(e.message)==='bad key'?'키가 맞지 않아요':navigator.onLine===false?'오프라인 · 로컬 저장 중':'연결 실패 · 로컬 저장 중','err')});
 }
-$('cfgBtn').addEventListener('click',function(){var b=$('cfgBox');b.hidden=!b.hidden;$('cu').value=cfg.u;$('ck').value=cfg.k});
+$('cfgBtn').addEventListener('click',function(){var b=$('cfgBox');b.hidden=!b.hidden;$('cu').value=cfg.u;$('ck').value=cfg.k;if(!b.hidden){b.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(function(){$('cu').focus()},350)}});
 $('csave').addEventListener('click',function(){
   cfg.u=$('cu').value.trim();cfg.k=$('ck').value.trim();cfg.fromHash=false;
   try{localStorage.setItem(KEY+':cfg',JSON.stringify({u:cfg.u,k:cfg.k}))}catch(e){}
