@@ -202,14 +202,14 @@ details.card>.in{padding:0 12px 12px}
 <div class="wrap" id="dash" hidden>
   <div class="dh">
     <div><h1>돈관리</h1><small id="today"></small></div>
-    <div class="mnav" role="group" aria-label="월 선택"><button id="mPrev" aria-label="이전 달">◀</button><b class="num" id="mLabel"></b><button id="mNext" aria-label="다음 달">▶</button><button class="pill" id="mNow" style="width:auto">이번 달</button></div>
+    <div class="mnav" role="group" aria-label="월 선택"><button id="mPrev" aria-label="이전 달">◀</button><b class="num" id="mLabel"></b><button id="mNext" aria-label="다음 달">▶</button><button class="pill" id="mNow" style="width:auto">오늘</button></div>
     <a class="pill" href="#">← 요약만 보기</a>
   </div>
   <div class="grid">
     <section class="card c8">
       <h2>자금 흐름 예측 <small>날짜별 잔액 · 막대를 누르면 그 달 말일</small></h2>
       <div class="row">
-        <input id="target" type="date" aria-label="날짜">
+        <input id="target" type="date" aria-label="날짜"><button class="pill" id="tToday" type="button">오늘</button>
         <div class="seg" id="hz" role="group" aria-label="기간"><button data-h="12">1년</button><button data-h="24">2년</button><button data-h="36">3년</button><button data-h="60">5년</button></div>
       </div>
       <div class="res" id="res"></div>
@@ -284,8 +284,8 @@ details.card>.in{padding:0 12px 12px}
       <ul class="list sc" id="cLog" style="max-height:100px"></ul>
     </section>
   </div>
-  <p class="foot"><span id="sync" data-c="off">연동 안 됨</span> · <button class="btn" id="cfgBtn" style="padding:1px 10px;font-size:11px">노션 연동 설정</button> · 처음 숫자는 예시예요.
-    <button class="btn" id="reset" style="padding:1px 10px;font-size:11px">예시로 되돌리기</button></p>
+  <p class="foot"><span id="sync" data-c="off">연동 안 됨</span> · <button class="btn" id="cfgBtn" style="padding:1px 10px;font-size:11px">노션 연동 설정</button>
+    <button class="btn" id="reset" style="padding:1px 10px;font-size:11px">모두 비우기</button></p>
   <div class="card" id="cfgBox" hidden>
     <div class="two2">
       <div><small>Apps Script 웹 앱 URL</small><input id="cu" type="text" style="width:100%" placeholder="https://script.google.com/macros/s/.../exec"></div>
@@ -306,15 +306,7 @@ var REPAY={equal_pi:'원리금균등상환',equal_p:'원금균등상환',bullet:
 function exCard(){return{id:'a9',name:'신용카드',type:'card',kind:'daily',amount:400000,day:14,endYm:'',balance:0,interest:0,saved:0,refundDay:0,benefits:[{id:'b1',name:'캐시백',mode:'pct',value:1},{id:'b2',name:'통신 할인',mode:'fix',value:5000}]}}
 function defCats(){return[{id:'c1',name:'커피',color:'#a8795a'},{id:'c2',name:'외식',color:'#f2552c'},{id:'c3',name:'약속',color:'#f08cb8'},{id:'c4',name:'선물',color:'#a96ff2'},{id:'c5',name:'사치',color:'#e0b100'},{id:'c6',name:'유흥',color:'#3b7fc4'},{id:'c7',name:'기타',color:'#2aa5a0'}]}
 
-function example(){return{cardSeeded:1,balance:5200000,savings:3000000,log:[],cats:defCats(),incomes:[{id:'i1',name:'월급 1차',amount:1600000,day:10},{id:'i2',name:'월급 2차',amount:1600000,day:25}],horizon:12,target:'',items:[
- {id:'a1',name:'실손보험',type:'insurance',kind:'lost',amount:45000,day:10,endYm:'',balance:0,interest:0,saved:0},
- {id:'a2',name:'정기보험',type:'insurance',kind:'lost',amount:120000,day:10,endYm:'',balance:0,interest:0,saved:0},
- {id:'a3',name:'주택청약',type:'cheongyak',kind:'locked',amount:100000,day:5,endYm:'',balance:0,interest:0,saved:2400000},
- {id:'a4',name:'정기적금',type:'saving',kind:'locked',amount:500000,day:25,endYm:'2027-06',balance:0,interest:0,saved:3000000},
- {id:'a5',name:'학자금대출',type:'loan',kind:'locked',amount:0,day:20,endYm:'',balance:12000000,interest:0,saved:0,repay:'equal_pi',rate:4.5,term:36,orig:15000000,start:'2024-03-20'},
- {id:'a6',name:'통신비',type:'living',kind:'daily',amount:65000,day:15,endYm:'',balance:0,interest:0,saved:0},
- {id:'a7',name:'식비·생활비',type:'living',kind:'daily',amount:800000,day:1,endYm:'',balance:0,interest:0,saved:0},
- {id:'a8',name:'구독 서비스',type:'other',kind:'lost',amount:30000,day:12,endYm:'',balance:0,interest:0,saved:0},exCard()]};}
+function example(){return{cardSeeded:1,balance:0,savings:0,log:[],cats:defCats(),incomes:[],horizon:12,target:'',items:[]};}
 
 var S;
 try{S=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){S=null}
@@ -325,7 +317,7 @@ if(!S.cats)S.cats=defCats();
 if(S.savings==null)S.savings=0;
 if(!S._d)S._d={up:{},rm:{},st:0};
 S.items.forEach(function(it){if(it.type==='loan'&&it.id==='a5'&&!(it.term>0)){it.repay='equal_pi';it.rate=4.5;it.term=36;it.amount=0;it.interest=0}});
-if(!S.cardSeeded){S.cardSeeded=1;if(!S.items.some(function(i){return i.type==='card'}))S.items.push(exCard())}
+S.cardSeeded=1;
 S.log.forEach(function(l){ /* 예전 기록(부호 있는 금액) 변환 */
   if(!l.k){if(l.m==='잔액 맞춤')l.k='adj';else if(l.a>0)l.k='in';else{l.k='out';l.a=-l.a}}
 });
@@ -487,7 +479,7 @@ function segDots(svg,segs,N,cols,p,r){
 function renderUsage(u){
   segDots($('usage'),u.segs,100,20,11,4.2);
   $('usageNote').textContent=viewYm.replace('-','.')+' · 점 1개 = 수입 1%';
-  $('usageLeg').innerHTML=u.segs.filter(function(s){return s.v>0}).map(function(s){return '<span><i style="background:'+s.color+'"></i>'+esc(s.name)+' <b class="num">'+man(s.v)+'</b></span>'}).join('');
+  $('usageLeg').innerHTML=u.segs.filter(function(s){return s.v>0}).map(function(s){return '<span><i style="background:'+s.color+'"></i>'+esc(s.name)+' <b class="num">'+man(s.v)+'</b></span>'}).join('')||'<span class="mut">월급과 고정 항목을 넣으면 점이 채워져요</span>';
   $('usage2').innerHTML=(u.over>0?'<span class="neg"><b>수입보다 '+won(u.over)+' 더 썼어요</b></span> · ':'')+'지출 중 소비 <b class="num" style="color:var(--fg)">'+man(u.soso)+'</b> · 투자 <b class="num" style="color:var(--fg)">'+man(u.inv)+'</b>';
 }
 
@@ -643,7 +635,7 @@ function riskCalc(c){
   if(cush<.5)hit(25,'지금 내 돈이 한 달 지출의 절반도 안 돼요');
   else if(cush<1)hit(15,'지금 내 돈이 한 달 지출보다 적어요');
   else if(cush<2)hit(5,'비상금이 두 달치가 안 돼요 (지금 '+cush.toFixed(1)+'달치)');
-  var lr=c.inc?c.left/c.inc:-1;
+  var lr=c.inc?c.left/c.inc:1;
   if(c.left<0)hit(30,'매달 나가는 돈이 수입보다 많아요');
   else if(lr<.1)hit(15,'매달 남는 돈이 수입의 10%도 안 돼요');
   else if(lr<.2)hit(5,'매달 남는 돈이 수입의 20%보다 적어요');
@@ -861,13 +853,14 @@ $('addCat').addEventListener('click',function(){
 
 /* 예측 / 기타 */
 $('target').addEventListener('input',function(){if(this.value){S.target=this.value;refresh()}});
+$('tToday').addEventListener('click',function(){S.target=dstr(today0());refresh()});
 $('hz').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;S.horizon=+b.dataset.h;refresh()});
 $('flow').addEventListener('click',function(e){var g=e.target.closest('[data-d]');if(g){S.target=g.dataset.d;refresh()}});
 $('reset').addEventListener('click',function(){
-  var b=this;if(!b.dataset.sure){b.dataset.sure=1;b.textContent='한 번 더 누르면 초기화';setTimeout(function(){delete b.dataset.sure;b.textContent='예시로 되돌리기'},3000);return}
+  var b=this;if(!b.dataset.sure){b.dataset.sure=1;b.textContent='한 번 더 누르면 모두 지워요';setTimeout(function(){delete b.dataset.sure;b.textContent='모두 비우기'},3000);return}
   var oldIds=S.log.map(function(l){return l.id});
   S=example();S._d={up:{},rm:{},st:1};oldIds.forEach(function(id){S._d.rm[id]=1});S.updated=Date.now();
-  openId=null;renderItems();renderSettings();renderMoney();lastSig=JSON.stringify(core());refresh();schedFlush(900);delete b.dataset.sure;b.textContent='예시로 되돌리기';
+  openId=null;renderItems();renderSettings();renderMoney();lastSig=JSON.stringify(core());refresh();schedFlush(900);delete b.dataset.sure;b.textContent='모두 비우기';
 });
 
 /* ---------- 노션 연동 (Apps Script) ---------- */
