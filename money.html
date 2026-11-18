@@ -559,7 +559,7 @@ function renderSettings(){
 function dotChart(svg,cols,o){
   var n=cols.length,W=o.W,p=o.p,r=o.r,R=0,NR=0;
   cols.forEach(function(c){
-    R=Math.max(R,c.pos.reduce(function(s,x){return s+x.n},0));
+    c.pos.forEach(function(x){x.n=Math.min(x.n,30)});(c.neg||[]).forEach(function(x){x.n=Math.min(x.n,30)});R=Math.max(R,c.pos.reduce(function(s,x){return s+x.n},0));
     NR=Math.max(NR,(c.neg||[]).reduce(function(s,x){return s+x.n},0));
   });
   R=Math.max(R,1);
@@ -592,8 +592,8 @@ function renderFlow(){
   }
   document.querySelectorAll('#hz button').forEach(function(b){b.setAttribute('aria-pressed',String(+b.dataset.h===S.horizon))});
   var H=S.horizon||12,rr=sim(new Date(t.getFullYear(),t.getMonth()+H,0)),sn=rr.snaps.slice(0,H);
-  var mx=1;sn.forEach(function(s){mx=Math.max(mx,s.bal+s.locked,s.locked)});
-  var u=niceUnit(mx/8);
+  var mx=1;sn.forEach(function(s){mx=Math.max(mx,Math.abs(s.bal)+s.locked,s.locked,-s.bal)});
+  var u=Math.max(10000,niceUnit(mx/8));
   var mark=isNaN(tg)?-1:(tg.getFullYear()*12+tg.getMonth())-ymIdx(t);
   var cols=sn.map(function(s){
     var pos=[],neg=[];
