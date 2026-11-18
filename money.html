@@ -183,6 +183,24 @@ details.card>.in{padding:0 12px 12px}
 .res>div{padding:3px 10px}
 .res b{font-size:14px}
 .foot{color:var(--muted);font-size:11px;margin-top:10px}
+.list li[data-id]{cursor:pointer}
+.list li.ed{display:block;background:var(--soft);border-radius:10px;padding:6px 8px;margin:2px 0;cursor:default}
+.erow{display:flex;gap:6px;flex-wrap:wrap;margin:3px 0;align-items:center}
+.erow input,.erow select{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:4px 8px;min-width:0}
+.lk{background:none;border:0;color:var(--muted);cursor:pointer;text-decoration:underline;padding:2px 4px}
+.catrow{margin-bottom:2px}
+.crow2{display:flex;align-items:center;gap:8px}
+.dotbtn{width:22px;height:22px;border-radius:50%;border:0;cursor:pointer;flex:none;padding:0;box-shadow:0 0 0 2px var(--card),0 0 0 3px var(--line)}
+.flat{flex:1;min-width:0;background:none;border:0;border-bottom:1px solid transparent;padding:5px 2px;font-weight:500}
+.flat:hover,.flat:focus{border-bottom-color:var(--line);outline:none}
+.x{background:none;border:0;color:var(--muted);cursor:pointer;font-size:17px;line-height:1;padding:2px 8px}
+.x:hover{color:var(--lost)}
+.pal{display:grid;grid-template-columns:repeat(9,22px);gap:9px;padding:8px 2px 12px 30px}
+.sw{width:22px;height:22px;border-radius:50%;border:0;cursor:pointer;padding:0;display:block}
+.sw.on{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--fg)}
+.sw.custom{position:relative;overflow:hidden;background:conic-gradient(#f2552c,#f2b705,#22b06a,#3b7fc4,#a96ff2,#f2552c)}
+.sw.custom input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;padding:0;border:0}
+#mDay{width:auto;height:28px;padding:0 8px}
 .arow{display:grid;grid-template-columns:1fr 130px auto;gap:6px;margin:4px 0;align-items:center}
 .arow input{width:100%;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:4px 8px;min-width:0}
 .c-ac{fill:#e07b39}.c-sv{fill:#22b06a}.c-cy{fill:#2fb7c9}.c-ins{fill:#7c8cf8}
@@ -208,7 +226,7 @@ details.card>.in{padding:0 12px 12px}
 <div class="wrap" id="dash" hidden>
   <div class="dh">
     <div><h1>돈관리</h1><small id="today"></small></div>
-    <div class="mnav" role="group" aria-label="월 선택"><button id="mPrev" aria-label="이전 달">◀</button><b class="num" id="mLabel"></b><button id="mNext" aria-label="다음 달">▶</button><button class="pill" id="mNow" style="width:auto">오늘</button></div>
+    <div class="mnav" role="group" aria-label="월 선택"><button id="mPrev" aria-label="이전 달">◀</button><b class="num" id="mLabel"></b><button id="mNext" aria-label="다음 달">▶</button><button class="pill" id="mNow" style="width:auto">오늘</button><input type="date" class="pill" id="mDay" aria-label="날짜로 보기" title="날짜로 보기"><button class="pill" id="mDayClr" style="width:auto" hidden>전체</button></div>
     <a class="pill" href="#">← 요약만 보기</a>
   </div>
   <div class="grid">
@@ -269,13 +287,13 @@ details.card>.in{padding:0 12px 12px}
           <button class="btn primary" id="sBtn">－ 쓰기</button>
         </div>
         <div class="ul" id="catSum" style="margin:0 0 6px"></div>
-        <ul class="list sc" id="sList" style="max-height:190px"></ul>
+        <ul class="list sc" id="sList" style="max-height:300px"></ul>
       </section>
       <section class="card">
         <h2>지출 항목 · 색깔 <small>색깔은 눌러서 바꿔요</small></h2>
-        <div class="two2">
+        <div class="two2" style="grid-template-columns:1fr">
           <div id="incomes" hidden></div><button id="addInc" type="button" hidden></button>
-          <div><small>지출 항목 · 색깔</small><div id="cats" style="margin-top:6px"></div><button class="btn add" id="addCat">+ 항목 추가</button></div>
+          <div><div id="cats"></div><button class="lk" id="addCat" type="button">+ 항목 추가</button></div>
         </div>
       </section>
     </div>
@@ -284,6 +302,7 @@ details.card>.in{padding:0 12px 12px}
       <div class="two"><div><small>내 돈</small><b class="num" id="cBal"></b></div><div><small>저금통장</small><b class="num pos" id="cSav"></b></div></div>
       <div class="ul" id="cAccts" style="margin:-2px 0 8px"></div>
       <div class="row">
+        <input id="cDate" type="date" aria-label="날짜" style="width:140px">
         <input id="cAmt" type="number" inputmode="numeric" step="1000" placeholder="금액" style="width:96px" aria-label="금액">
         <input id="cMemo" placeholder="메모 (월급, 용돈…)" style="flex:1;min-width:100px" aria-label="메모">
       </div>
@@ -297,7 +316,7 @@ details.card>.in{padding:0 12px 12px}
         <input id="cSet" type="number" inputmode="numeric" step="1000" placeholder="통장 잔액으로 맞추기" style="width:150px" aria-label="잔액 맞추기">
         <button class="btn" id="cSetBtn">맞추기</button>
       </div>
-      <ul class="list sc" id="cLog" style="max-height:100px"></ul>
+      <ul class="list sc" id="cLog" style="max-height:300px"></ul>
     </section>
   </div>
   <p class="foot"><span id="sync" data-c="off">연동 안 됨</span> · <button class="btn" id="cfgBtn" style="padding:1px 10px;font-size:11px">노션 연동 설정</button>
@@ -370,7 +389,8 @@ function dim(y,m){return new Date(y,m+1,0).getDate()}
 function ymLabel(idx){return Math.floor(idx/12)+'.'+String(idx%12+1).padStart(2,'0')}
 function today0(){var d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate())}
 function dstr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-var viewYm=dstr(today0()).slice(0,7);
+var viewYm=dstr(today0()).slice(0,7),viewDay='',editId=null,palOpen=null;
+var PAL=['#f2552c','#e0486d','#f08cb8','#a96ff2','#7c8cf8','#3b7fc4','#2fb7c9','#2aa5a0','#22b06a','#8fae5f','#e0b100','#f58a2e','#a8795a','#8a8a86','#2a2a2a','#c0392b'];
 function catOf(id){return S.cats.find(function(c){return c.id===id})||{name:'삭제된 항목',color:'#8a8a86'}}
 
 /* ---------- plan / loan / card ---------- */
@@ -573,6 +593,13 @@ function applyLog(l,s){
   else if(l.k==='save'){S.balance-=s*l.a;var ac=l.acct&&S.accts.find(function(x){return x.id===l.acct});if(ac)ac.bal=(+ac.bal||0)+s*l.a;else S.savings+=s*l.a}
   else S.balance+=s*l.a;
 }
+function editRow(l){
+  var out=l.k==='out';
+  var cat=out?'<select data-ef="cat" aria-label="항목">'+S.cats.map(function(c){return '<option value="'+c.id+'"'+(c.id===l.cat?' selected':'')+'>'+esc(c.name)+'</option>'}).join('')+'</select>':'';
+  var nat=out?'<select data-ef="nat" aria-label="성격"><option value="소비"'+(l.nat!=='투자'?' selected':'')+'>소비</option><option value="투자"'+(l.nat==='투자'?' selected':'')+'>투자</option></select>':'';
+  return '<li class="ed" data-id="'+l.id+'"><div class="erow"><input data-ef="t" type="date" value="'+l.t+'" aria-label="날짜">'+cat+nat+'</div>'+
+    '<div class="erow"><input data-ef="m" value="'+esc(l.m||'')+'" placeholder="이름 · 메모" style="flex:1;min-width:110px" aria-label="이름"><input data-ef="a" type="number" step="1000" value="'+l.a+'" style="width:104px" aria-label="금액"><button class="lk" data-done="1" type="button">완료</button></div></li>';
+}
 function renderAccts(){
   var sel=$('cDest'),cur=sel.value||'sav';
   sel.innerHTML='<option value="sav">저금통장</option>'+S.accts.map(function(a){return '<option value="'+a.id+'">'+esc(a.name)+'</option>'}).join('');
@@ -584,19 +611,21 @@ function renderSpend(){
   var sel=$('sCat'),cur=sel.value;
   sel.innerHTML=S.cats.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+'</option>'}).join('');
   if(cur&&S.cats.some(function(c){return c.id===cur}))sel.value=cur;
-  var outs=S.log.filter(function(l){return l.k==='out'&&l.t.slice(0,7)===viewYm}).sort(function(a,b){return a.t<b.t?1:a.t>b.t?-1:0});
+  var outs=S.log.filter(function(l){return l.k==='out'&&l.t.slice(0,7)===viewYm&&(!viewDay||l.t===viewDay)}).sort(function(a,b){return a.t<b.t?1:a.t>b.t?-1:0});
   var sum=0,inv=0,byCat={};
   outs.forEach(function(l){sum+=l.a;byCat[l.cat]=(byCat[l.cat]||0)+l.a;if(l.nat==='투자')inv+=l.a});
-  $('spendNote').textContent=viewYm.replace('-','.')+' · '+won(sum)+' ('+outs.length+'건)';
+  $('spendNote').textContent=(viewDay?viewDay.slice(5).replace('-','/'):viewYm.replace('-','.'))+' · '+won(sum)+' ('+outs.length+'건)';
   $('catSum').innerHTML=Object.keys(byCat).sort(function(a,b){return byCat[b]-byCat[a]}).map(function(k){var c=catOf(k);return '<span><i style="background:'+c.color+'"></i>'+esc(c.name)+' <b class="num">'+man(byCat[k])+'</b></span>'}).join('')+(inv?'<span>투자 <b class="num">'+man(inv)+'</b></span>':'');
   $('sList').innerHTML=outs.length?outs.map(function(l){
+    if(l.id===editId)return editRow(l);
     var c=catOf(l.cat),p=l.t.split('-');
     return '<li data-id="'+l.id+'"><span><span class="mut">'+(+p[1])+'/'+(+p[2])+'</span><i class="cd" style="background:'+c.color+'"></i><span class="nm">'+esc(c.name)+(l.m?' <span class="mut">'+esc(l.m)+'</span>':'')+'</span>'+(l.nat==='투자'?'<span class="tag inv">투자</span>':'')+'</span><span class="num">−'+won(l.a)+'<button title="삭제 (내 돈 되돌림)" aria-label="삭제">×</button></span></li>';
   }).join(''):'<li><span class="mut">이 달에는 지출 기록이 없어요</span></li>';
 }function renderMoney(){
   $('cBal').textContent=won(S.balance);$('cSav').textContent=won(acctTotal());renderAccts();
-  var mv=S.log.filter(function(l){return l.k!=='out'&&l.t.slice(0,7)===viewYm}).sort(function(a,b){return a.t<b.t?1:a.t>b.t?-1:0});
+  var mv=S.log.filter(function(l){return l.k!=='out'&&l.t.slice(0,7)===viewYm&&(!viewDay||l.t===viewDay)}).sort(function(a,b){return a.t<b.t?1:a.t>b.t?-1:0});
   $('cLog').innerHTML=mv.length?mv.map(function(l){
+    if(l.id===editId)return editRow(l);
     var p=l.t.split('-'),lab,amt,cls;
     if(l.k==='in'){lab='넣음';amt=l.a;cls='pos'}
     else if(l.k==='save'){var an=acctName(l.acct);lab=l.a>=0?'→ '+an+' 저금':'← '+an+'에서 꺼냄';amt=-l.a;cls=l.a>=0?'':'pos'}
@@ -610,7 +639,9 @@ function renderSettings(){
     return '<div class="irow" data-id="'+x.id+'"><input data-f="name" value="'+esc(x.name)+'" aria-label="이름"><input data-f="amount" type="number" step="10000" value="'+x.amount+'" aria-label="금액"><input data-f="day" type="number" min="1" max="31" value="'+x.day+'" aria-label="받는 날"><button class="btn danger" data-del="1" aria-label="삭제">삭제</button></div>';
   }).join('');
   $('cats').innerHTML=S.cats.map(function(c){
-    return '<div class="crow" data-id="'+c.id+'"><input type="color" data-cf="color" value="'+c.color+'" aria-label="색깔"><input data-cf="name" value="'+esc(c.name)+'" aria-label="이름"><button class="btn danger" data-del="1" aria-label="삭제">삭제</button></div>';
+    var open=palOpen===c.id;
+    return '<div class="catrow" data-id="'+c.id+'"><div class="crow2"><button class="dotbtn" data-pal="1" type="button" style="background:'+c.color+'" aria-label="색깔 고르기" aria-expanded="'+open+'"></button><input class="flat" data-cf="name" value="'+esc(c.name)+'" aria-label="이름"><button class="x" data-del="1" type="button" aria-label="삭제">×</button></div>'+
+      (open?'<div class="pal">'+PAL.map(function(p){return '<button class="sw'+(p.toLowerCase()===String(c.color).toLowerCase()?' on':'')+'" data-sw="'+p+'" type="button" style="background:'+p+'" aria-label="'+p+'"></button>'}).join('')+'<label class="sw custom" title="직접 고르기"><input type="color" data-cf="color" value="'+c.color+'" aria-label="직접 고르기"></label></div>':'')+'</div>';
   }).join('');
 }
 
@@ -989,16 +1020,19 @@ $('debts').addEventListener('click',function(e){
 /* 월 이동 */
 function setMonth(){
   var cur=dstr(today0()).slice(0,7);
-  $('mLabel').textContent=viewYm.replace('-','.');
-  $('sDate').value=viewYm===cur?dstr(today0()):viewYm+'-01';
+  $('mLabel').textContent=viewYm.replace('-','.')+(viewDay?'.'+viewDay.slice(8):'');
+  var dv=viewDay||(viewYm===cur?dstr(today0()):viewYm+'-01');
+  $('sDate').value=dv;$('cDate').value=dv;$('mDay').value=viewDay;$('mDayClr').hidden=!viewDay;
   renderMoney();refresh();
 }
-function shiftYm(n){var dt=new Date(+viewYm.slice(0,4),+viewYm.slice(5,7)-1+n,1);viewYm=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0');setMonth()}
+function shiftYm(n){viewDay='';var dt=new Date(+viewYm.slice(0,4),+viewYm.slice(5,7)-1+n,1);viewYm=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0');setMonth()}
 $('mPrev').addEventListener('click',function(){shiftYm(-1)});
 $('mNext').addEventListener('click',function(){shiftYm(1)});
-$('mNow').addEventListener('click',function(){viewYm=dstr(today0()).slice(0,7);setMonth()});
+$('mNow').addEventListener('click',function(){viewDay='';viewYm=dstr(today0()).slice(0,7);setMonth()});
+$('mDay').addEventListener('change',function(){viewDay=this.value||'';if(viewDay)viewYm=viewDay.slice(0,7);setMonth()});
+$('mDayClr').addEventListener('click',function(){viewDay='';setMonth()});
 /* 지출 기록 */
-$('sDate').value=dstr(today0());
+$('sDate').value=dstr(today0());$('cDate').value=dstr(today0());
 $('sBtn').addEventListener('click',function(){
   var v=Math.abs(+$('sAmt').value||0);if(!v)return;
   addLog({k:'out',t:$('sDate').value||dstr(today0()),a:v,m:$('sMemo').value.trim(),cat:$('sCat').value,nat:$('sNat').value});
@@ -1006,17 +1040,31 @@ $('sBtn').addEventListener('click',function(){
 });
 $('sAmt').addEventListener('keydown',function(e){if(e.key==='Enter')$('sBtn').click()});
 function delLog(e){
-  if(!e.target.closest('button'))return;
-  var li=e.target.closest('li'),i=S.log.findIndex(function(l){return l.id===li.dataset.id});
-  if(i<0)return;markRm(S.log[i].id);applyLog(S.log[i],-1);S.log.splice(i,1);renderMoney();refresh();
+  var li=e.target.closest('li[data-id]');if(!li)return;
+  var id=li.dataset.id,i=S.log.findIndex(function(l){return l.id===id});if(i<0)return;
+  if(e.target.closest('[data-done]')){editId=null;renderMoney();return}
+  if(e.target.closest('button[aria-label="삭제"]')){markRm(id);applyLog(S.log[i],-1);S.log.splice(i,1);if(editId===id)editId=null;renderMoney();refresh();return}
+  if(e.target.closest('.ed'))return;
+  editId=editId===id?null:id;renderMoney();
+}
+function editLog(e){
+  var f=e.target.dataset.ef;if(!f)return;
+  var li=e.target.closest('li[data-id]'),l=li&&S.log.find(function(x){return x.id===li.dataset.id});if(!l)return;
+  var v=e.target.value;if(f==='t'&&!v)return;
+  applyLog(l,-1);
+  if(f==='a')l.a=+v||0;else l[f]=v;
+  applyLog(l,1);markUp(l.id);
+  if(f==='t'&&l.t.slice(0,7)!==viewYm){viewYm=l.t.slice(0,7);viewDay='';setMonth()}else renderMoney();
+  refresh();
 }
 $('sList').addEventListener('click',delLog);
+$('sList').addEventListener('change',editLog);$('cLog').addEventListener('change',editLog);
 $('cLog').addEventListener('click',delLog);
 
 /* 내 돈 · 저금통장 */
 function cashEntry(k,sign){
   var v=Math.abs(+$('cAmt').value||0);if(!v)return;
-  var o={k:k,t:dstr(today0()),a:sign*v,m:$('cMemo').value.trim()};
+  var o={k:k,t:$('cDate').value||dstr(today0()),a:sign*v,m:$('cMemo').value.trim()};
   if(k==='save'&&$('cDest').value!=='sav')o.acct=$('cDest').value;
   addLog(o);$('cAmt').value='';$('cMemo').value='';
 }
@@ -1038,13 +1086,18 @@ $('incomes').addEventListener('click',function(e){
 });
 $('addInc').addEventListener('click',function(){S.incomes.push({id:'i'+Date.now(),name:'월급',amount:0,day:1});renderSettings();refresh()});
 $('cats').addEventListener('input',function(e){
-  var row=e.target.closest('.crow'),f=e.target.dataset.cf;if(!row||!f)return;
+  var row=e.target.closest('.catrow'),f=e.target.dataset.cf;if(!row||!f)return;
   var c=S.cats.find(function(x){return x.id===row.dataset.id});if(!c)return;
-  c[f]=e.target.value;renderSpend();refresh();
+  c[f]=e.target.value;if(f==='color'){var d=row.querySelector('.dotbtn');if(d)d.style.background=e.target.value}
+  renderSpend();refresh();
 });
 $('cats').addEventListener('click',function(e){
-  if(!e.target.closest('[data-del]'))return;
-  var id=e.target.closest('.crow').dataset.id;S.cats=S.cats.filter(function(c){return c.id!==id});renderSettings();renderSpend();refresh();
+  var row=e.target.closest('.catrow');if(!row)return;
+  var id=row.dataset.id,c=S.cats.find(function(x){return x.id===id});
+  if(e.target.closest('[data-del]')){S.cats=S.cats.filter(function(x){return x.id!==id});if(palOpen===id)palOpen=null;renderSettings();renderSpend();refresh();return}
+  if(e.target.closest('[data-pal]')){palOpen=palOpen===id?null:id;renderSettings();return}
+  var sw=e.target.closest('[data-sw]');
+  if(sw&&c){c.color=sw.dataset.sw;renderSettings();renderSpend();refresh()}
 });
 $('addCat').addEventListener('click',function(){
   var pal=['#e0486d','#4bb3a2','#7c8cf8','#e07b39','#5aa05a'];
