@@ -201,6 +201,19 @@ details.card>.in{padding:0 12px 12px}
 .sw.custom{position:relative;overflow:hidden;background:conic-gradient(#f2552c,#f2b705,#22b06a,#3b7fc4,#a96ff2,#f2552c)}
 .sw.custom input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;padding:0;border:0}
 #mDay{width:auto;height:28px;padding:0 8px}
+/* 넓은 화면: 카드 크기는 고정, 내용이 많아지면 목록 부분만 카드 안에서 스크롤 */
+@media (min-width:1101px){
+  .grid>:nth-child(1),.grid>:nth-child(3){height:520px}
+  .grid>:nth-child(n+4){height:380px}
+  .grid>:nth-child(1),.grid>:nth-child(n+3){display:flex;flex-direction:column;overflow:hidden}
+  .grid>:nth-child(2){height:520px;display:flex;flex-direction:column;gap:8px}
+  .grid>:nth-child(2)>.stats{flex:none}
+  #upc{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+  #upc>.sc{flex:1;min-height:60px;overflow:auto;max-height:none!important}
+  #fpWrap,#catBody,#items,#debts,#sList,#cLog{flex:1;min-height:0;overflow:auto;max-height:none!important}
+  .grid *{scrollbar-width:thin}
+}
+#toast{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:var(--btn);color:var(--btn-fg);padding:6px 14px;border-radius:999px;font-size:12px;z-index:50;max-width:92vw;text-align:center}
 .c3{grid-column:span 3}
 @media (max-width:1100px){.c3{grid-column:span 6}.c6{grid-column:span 12}}
 @media (max-width:700px){.c3{grid-column:span 12}}
@@ -258,31 +271,33 @@ span.dotbtn{display:block}
   </div>
   <div class="grid">
     <section class="card c6">
-      <h2>자금 흐름 <small>지금을 가운데로 · 앞뒤 같은 기간</small><span class="seg" id="fv" role="group" aria-label="보기" style="margin-left:auto"><button data-v="dot">도트</button><button data-v="flow">흐름도</button></span></h2>
+      <h2>자금 흐름 <small>지금을 가운데로 · 앞뒤 같은 기간</small><span class="seg" id="fv" role="group" aria-label="보기" style="margin-left:auto"><button data-v="dot">도트</button><button data-v="flow">흐름도</button><button data-v="time">시기별</button><button data-v="xls" title="엑셀 파일로 받기">엑셀 ⬇</button></span></h2>
       <div class="row">
         <span id="tgtRow"><input id="target" type="date" aria-label="날짜"> <button class="pill" id="tToday" type="button">오늘</button></span>
         <div class="seg" id="hz" role="group" aria-label="기간"><button data-h="6">6개월</button><button data-h="12">1년</button><button data-h="24">2년</button><button data-h="36">3년</button></div>
       </div>
-      <div id="fp1"><div class="res" id="res"></div>
+      <div id="fpWrap"><div id="fp1"><div class="res" id="res"></div>
       <svg class="chart" id="flow" role="img" aria-label="월말 자금 예측"></svg>
       <div class="legend"><span><i></i>내 돈</span><span class="k-locked"><i></i>묶인 돈(저금통장·적금)</span><span class="k-lost"><i></i>마이너스</span><span id="unit"></span></div></div>
       <div id="fp2" hidden>
         <small id="fnote" style="display:block;margin-bottom:4px"></small>
         <svg class="chart" id="fx" role="img" aria-label="현금 흐름도"></svg>
         <div id="fdet" style="margin-top:8px"></div>
-        <h2 style="margin:14px 0 6px">시기별로 어디로 나갔나 <small>수입 대비 % · 눌러서 그 달로 이동</small></h2>
+        </div>
+      <div id="fp3" hidden>
+        <h2 style="margin:4px 0 6px">시기별로 어디로 나갔나 <small>수입 대비 % · 눌러서 그 달로 이동</small></h2>
         <div id="mshare"></div>
         <div class="legend" id="mleg"></div>
-        <h2 style="margin:14px 0 6px">쌓인 돈 추이 <small>통장 · 적금 · 청약 · 보험</small></h2>
+        <h2 style="margin:16px 0 6px">쌓인 돈 추이 <small>지난 기록부터 · 통장 · 적금 · 청약 · 보험</small></h2>
         <svg class="chart" id="sx" role="img" aria-label="쌓인 돈 추이"></svg>
         <div class="legend"><span><i style="background:#e07b39"></i>통장</span><span><i style="background:#22b06a"></i>적금</span><span><i style="background:#2fb7c9"></i>청약</span><span><i style="background:#7c8cf8"></i>보험(낸 돈)</span><span id="sxu"></span></div>
       </div>
-          <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:10px">
+          <div id="usageBox" style="margin-top:14px;border-top:1px solid var(--line);padding-top:10px">
       <h2>이번 달 돈 쓰임새 <small id="usageNote"></small></h2>
       <svg class="usage" id="usage" style="max-width:380px" viewBox="0 0 220 55" role="img" aria-label="이번 달 돈 쓰임새"></svg>
       <div class="ul" id="usageLeg"></div>
       <div class="u2" id="usage2"></div>
-          </div>
+          </div></div>
     </section>
     <div class="c3 stack"><section class="card stats">
       <div class="srow"><span>내 돈</span><b class="num" id="hCash"></b></div>
@@ -295,9 +310,9 @@ span.dotbtn{display:block}
     <section class="card c3" id="catcard">
       <h2>지출 항목 · 색깔 수정 <small id="donutNote"></small></h2>
       <div class="donutwrap"><svg id="donut" viewBox="0 0 120 120" role="img" aria-label="지출 비율"></svg></div>
-      <div id="donutLeg"></div>
+      <div id="catBody"><div id="donutLeg"></div>
       <div id="incomes" hidden></div><button id="addInc" type="button" hidden></button>
-      <div id="cats"></div><button class="lk" id="addCat" type="button">+ 항목 추가</button>
+      <div id="cats"></div><button class="lk" id="addCat" type="button">+ 항목 추가</button></div>
     </section>    <section class="card c3">
       <h2>고정으로 나가는 항목 <small id="fixNote"></small></h2>
       <div class="sc" id="items" style="max-height:300px"></div>
@@ -733,8 +748,9 @@ function niceUnit(v){var s=Math.pow(10,Math.floor(Math.log10(Math.max(v,1))));va
 function renderFlow(){
   document.querySelectorAll('#fv button').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.v===fview))});
   document.querySelectorAll('#hz button').forEach(function(b){b.setAttribute('aria-pressed',String(+b.dataset.h===S.horizon))});
-  $('fp1').hidden=fview!=='dot';$('fp2').hidden=fview!=='flow';$('tgtRow').hidden=fview!=='dot';
+  $('fp1').hidden=fview!=='dot';$('usageBox').hidden=fview!=='dot';$('fp2').hidden=fview!=='flow';$('fp3').hidden=fview!=='time';$('tgtRow').hidden=fview!=='dot';
   if(fview==='flow'){renderFlow2();return}
+  if(fview==='time'){renderTime();return}
   var t=today0();
   if(!S.target)S.target=dstr(new Date(t.getFullYear(),t.getMonth()+3,t.getDate()));
   $('target').value=S.target;
@@ -883,6 +899,125 @@ function drawSankey(fc){
   el.innerHTML=h;
   $('mleg').innerHTML=FN.map(function(n){return '<span><i style="background:'+n.c+'"></i>'+n.name+'</span>'}).join('');
 }
+function histStock(end){
+  var es=dstr(end),ac=acctTotal(),r={sv:0,cy:0,ins:0};
+  S.log.forEach(function(l){if(l.t>es&&l.k==='save')ac-=l.a});
+  S.items.forEach(function(it){
+    if(!stocked(it))return;
+    var v=(+it.saved||0)+((it.savedAt&&es>=it.savedAt)?(+it.amount||0)*countPays(it,it.savedAt,end):0);
+    if(it.type==='saving')r.sv+=v;else if(it.type==='cheongyak')r.cy+=v;else r.ins+=v;
+  });
+  r.ac=ac;return r;
+}
+function renderTime(){
+  renderShare();
+  var H=Math.min(S.horizon||12,36),t=today0(),curIdx=ymIdx(t),minYm='',rows=[],mx=0;
+  S.log.forEach(function(l){var y=l.t.slice(0,7);if(minYm===''||y<minYm)minYm=y});
+  S.items.forEach(function(it){if(stocked(it)&&it.savedAt){var y=it.savedAt.slice(0,7);if(minYm===''||y<minYm)minYm=y}});
+  for(var i=H;i>=0;i--){
+    var idx=curIdx-i,y=Math.floor(idx/12),m=idx%12,ym=y+'-'+String(m+1).padStart(2,'0');
+    var none=minYm===''||ym<minYm,end=i===0?t:new Date(y,m+1,0),st=none?{ac:0,sv:0,cy:0,ins:0}:histStock(end);
+    rows.push({y:y,m:m,cur:i===0,none:none,st:st});
+    mx=Math.max(mx,st.ac+st.sv+st.cy+st.ins);
+  }
+  if(mx<=0){$('sx').setAttribute('viewBox','0 0 700 1');$('sx').innerHTML='';$('sxu').textContent='아직 쌓인 돈 기록이 없어요';return}
+  var u=Math.max(10000,niceUnit(mx/8));
+  var cols=rows.map(function(r){
+    var s=r.st;
+    return{pos:[{n:Math.round(s.ac/u),c:'ac'},{n:Math.round(s.sv/u),c:'sv'},{n:Math.round(s.cy/u),c:'cy'},{n:Math.round(s.ins/u),c:'ins'}],neg:[],
+      label:r.cur?'지금':(r.m+1)+'월',cur:r.cur,
+      tip:r.none?(r.y+'.'+(r.m+1)+' · 기록 없음'):(r.y+'.'+(r.m+1)+(r.cur?' 지금':' 말')+' · 통장 '+won(s.ac)+' · 적금 '+won(s.sv)+' · 청약 '+won(s.cy)+' · 보험 '+won(s.ins))};
+  });
+  dotChart($('sx'),cols,{W:700,p:10,r:3.6,maxK:4,labels:true});
+  $('sxu').textContent='점 1개 ≈ '+man(u)+'원';
+}
+function toast(msg){
+  var el=$('toast');if(!el){el=document.createElement('div');el.id='toast';document.body.appendChild(el)}
+  el.textContent=msg;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(function(){el.hidden=true},4500);
+}
+var CRC_T=null;
+function crc32(b){
+  if(!CRC_T){CRC_T=[];for(var n=0;n<256;n++){var c=n;for(var k=0;k<8;k++)c=c&1?(0xEDB88320^(c>>>1)):(c>>>1);CRC_T[n]=c>>>0}}
+  var crc=0xFFFFFFFF;for(var i=0;i<b.length;i++)crc=CRC_T[(crc^b[i])&255]^(crc>>>8);
+  return (crc^0xFFFFFFFF)>>>0;
+}
+function zipStore(files){
+  var enc=new TextEncoder(),parts=[],central=[],off=0,csize=0;
+  files.forEach(function(f){
+    var nm=enc.encode(f[0]),data=enc.encode(f[1]),crc=crc32(data);
+    var lh=new Uint8Array(30+nm.length),dv=new DataView(lh.buffer);
+    dv.setUint32(0,0x04034b50,true);dv.setUint16(4,20,true);dv.setUint16(6,0x0800,true);dv.setUint16(8,0,true);dv.setUint16(10,0,true);dv.setUint16(12,0x21,true);
+    dv.setUint32(14,crc,true);dv.setUint32(18,data.length,true);dv.setUint32(22,data.length,true);dv.setUint16(26,nm.length,true);dv.setUint16(28,0,true);lh.set(nm,30);
+    var ch=new Uint8Array(46+nm.length),cv=new DataView(ch.buffer);
+    cv.setUint32(0,0x02014b50,true);cv.setUint16(4,20,true);cv.setUint16(6,20,true);cv.setUint16(8,0x0800,true);cv.setUint16(10,0,true);cv.setUint16(12,0,true);cv.setUint16(14,0x21,true);
+    cv.setUint32(16,crc,true);cv.setUint32(20,data.length,true);cv.setUint32(24,data.length,true);cv.setUint16(28,nm.length,true);
+    cv.setUint16(30,0,true);cv.setUint16(32,0,true);cv.setUint16(34,0,true);cv.setUint16(36,0,true);cv.setUint32(38,0,true);cv.setUint32(42,off,true);ch.set(nm,46);
+    parts.push(lh,data);central.push(ch);off+=lh.length+data.length;csize+=ch.length;
+  });
+  var end=new Uint8Array(22),ev=new DataView(end.buffer);
+  ev.setUint32(0,0x06054b50,true);ev.setUint16(4,0,true);ev.setUint16(6,0,true);ev.setUint16(8,files.length,true);ev.setUint16(10,files.length,true);ev.setUint32(12,csize,true);ev.setUint32(16,off,true);ev.setUint16(20,0,true);
+  return new Blob(parts.concat(central,[end]),{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+function xlsxBlob(sheets){
+  var X=function(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'')};
+  var col=function(n){var s='';n++;while(n>0){var m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26)}return s};
+  var H='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',NS='http://schemas.openxmlformats.org/spreadsheetml/2006/main',RS='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  var files=[['[Content_Types].xml',H+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+sheets.map(function(s,i){return '<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'}).join('')+'</Types>'],
+    ['_rels/.rels',H+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="'+RS+'/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ['xl/workbook.xml',H+'<workbook xmlns="'+NS+'" xmlns:r="'+RS+'"><sheets>'+sheets.map(function(s,i){return '<sheet name="'+X(s.name)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>'}).join('')+'</sheets></workbook>'],
+    ['xl/_rels/workbook.xml.rels',H+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+sheets.map(function(s,i){return '<Relationship Id="rId'+(i+1)+'" Type="'+RS+'/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>'}).join('')+'</Relationships>']];
+  sheets.forEach(function(s,i){
+    var rows=s.rows.map(function(r,ri){
+      return '<row r="'+(ri+1)+'">'+r.map(function(v,ci){
+        var ref=col(ci)+(ri+1);
+        if(typeof v==='number'&&isFinite(v))return '<c r="'+ref+'"><v>'+(Math.round(v*100)/100)+'</v></c>';
+        if(v===''||v==null)return '';
+        return '<c r="'+ref+'" t="inlineStr"><is><t xml:space="preserve">'+X(v)+'</t></is></c>';
+      }).join('')+'</row>';
+    }).join('');
+    files.push(['xl/worksheets/sheet'+(i+1)+'.xml',H+'<worksheet xmlns="'+NS+'"><sheetData>'+rows+'</sheetData></worksheet>']);
+  });
+  return zipStore(files);
+}
+function exportSheets(){
+  var KN={'in':'넣음(수입)','out':'지출','save':'저금','adj':'잔액 맞춤'},t=today0(),curIdx=ymIdx(t);
+  var logs=S.log.slice().sort(function(a,b){return a.t<b.t?-1:a.t>b.t?1:0});
+  var s1=[['날짜','종류','항목','이름·메모','금액','소비/투자','통장']].concat(logs.map(function(l){
+    var kind=l.k==='save'&&l.a<0?'꺼냄':KN[l.k]||l.k;
+    return[l.t,kind,l.k==='out'?catOf(l.cat).name:'',l.m||'',l.k==='out'?l.a:l.a,l.k==='out'?(l.nat||'소비'):'',l.k==='save'?acctName(l.acct):''];
+  }));
+  var minYm='';logs.forEach(function(l){var y=l.t.slice(0,7);if(minYm===''||y<minYm)minYm=y});
+  var s2=[['월','수입(넣은 돈)','대출','보험','청약','적금','생활·카드·기타','지출 기록','통장 저금','남은 돈','월말 내 돈','월말 묶인 돈(통장+적금+청약)']];
+  if(minYm!==''){
+    var y0=+minYm.slice(0,4),m0=+minYm.slice(5,7)-1,n=curIdx-(y0*12+m0);
+    for(var i=n;i>=0;i--){
+      var idx=curIdx-i,y=Math.floor(idx/12),m=idx%12,ym=y+'-'+String(m+1).padStart(2,'0'),fc=flowCalc(ym),inc=incOf(ym),g=fc.g,used=fc.used,end=i===0?t:new Date(y,m+1,0),h=histAt(end);
+      s2.push([ym,inc,g.loan,g.ins,g.cy,g.sv,g.spend,g.rec,g.man,inc-used,h.bal,h.locked]);
+    }
+  }
+  var s3=[['이름','유형','납입일','이번 달 납입액','종료월','모인 금액(보험은 낸 돈)','남은 원금','연이율(%)','남은 회차']].concat(S.items.map(function(it){
+    var p=plan(it);
+    return[it.name||'',TYPES[it.type]||it.type,it.day,monthly(it),it.endYm||'',stocked(it)?heldNow(it):'',it.type==='loan'?(+it.balance||0):'',it.type==='loan'?(+it.rate||0):'',it.type==='loan'&&p.n!=null?p.n:''];
+  }));
+  var s4=[['구분','이름','금액'],['주통장','내 돈',+S.balance||0],['통장','저금통장',+S.savings||0]];
+  S.accts.forEach(function(a){s4.push(['통장',a.name,+a.bal||0])});
+  S.items.forEach(function(it){
+    if(it.type==='saving')s4.push(['적금',it.name,heldNow(it)]);
+    else if(it.type==='cheongyak')s4.push(['청약',it.name,heldNow(it)]);
+    else if(it.type==='insurance')s4.push(['보험(낸 돈)',it.name,heldNow(it)]);
+    else if(it.type==='loan')s4.push(['대출(남은 원금)',it.name,+it.balance||0]);
+  });
+  return[{name:'기록',rows:s1},{name:'월별 요약',rows:s2},{name:'고정 항목',rows:s3},{name:'잔액',rows:s4}];
+}
+function exportXlsx(){
+  try{
+    var blob=xlsxBlob(exportSheets()),a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download='돈관리_'+dstr(today0())+'.xlsx';
+    document.body.appendChild(a);a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1500);
+    toast(window.self!==window.top?'노션 안에서는 받기가 막힐 수 있어요 · 안 되면 새 탭에서 열어 눌러 주세요':'엑셀 파일을 만들었어요');
+  }catch(e){toast('엑셀 만들기 실패: '+e.message)}
+}
 function fmtH(){var H=S.horizon||12;return H%12===0?(H/12)+'년':H+'개월'}
 function renderFDet(fc,sr){
   var el=$('fdet'),k=fsel,h='',st=fc.st,mi=(+viewYm.slice(0,4))*12+(+viewYm.slice(5,7)-1);
@@ -933,18 +1068,9 @@ function renderFDet(fc,sr){
 function renderFlow2(){
   var fc=flowCalc(viewYm),H=S.horizon||12,t=today0(),until=new Date(t.getFullYear(),t.getMonth()+H,0),sr=sim(until);
   $('fnote').textContent=viewYm.replace('-','.')+' 기준 · 들어온 돈이 어디로 나뉘는지 · 눌러서 자세히';
-  drawSankey(fc);renderShare();
+  drawSankey(fc);
   if(!keepDet)renderFDet(fc,sr);
-  var sn=sr.snaps.slice(0,H),mx=0;
-  sn.forEach(function(s){mx=Math.max(mx,s.ac+s.sv+s.cy+s.ins)});
-  if(mx<=0){$('sx').setAttribute('viewBox','0 0 700 1');$('sx').innerHTML='';$('sxu').textContent='쌓인 돈이 아직 없어요';return}
-  var u=Math.max(10000,niceUnit(mx/8));
-  var cols=sn.map(function(s){
-    return{pos:[{n:Math.round(s.ac/u),c:'ac'},{n:Math.round(s.sv/u),c:'sv'},{n:Math.round(s.cy/u),c:'cy'},{n:Math.round(s.ins/u),c:'ins'}],neg:[],label:(s.m+1)+'월',
-      tip:s.y+'.'+(s.m+1)+' 말 · 통장 '+won(s.ac)+' · 적금 '+won(s.sv)+' · 청약 '+won(s.cy)+' · 보험 '+won(s.ins)};
-  });
-  dotChart($('sx'),cols,{W:700,p:10,r:3.6,maxK:4,labels:true});
-  $('sxu').textContent='점 1개 ≈ '+man(u)+'원';
+
 }
 
 /* ---------- 위험도 ---------- */
@@ -1228,7 +1354,11 @@ $('mshare').addEventListener('click',function(e){var r=e.target.closest('[data-y
 /* 곧 빠져나갈 돈 */
 $('upc').addEventListener('click',function(e){var b=e.target.closest('[data-ud]');if(!b)return;upDays=+b.dataset.ud;renderUpcoming()});
 /* 현금 흐름도 */
-$('fv').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;fview=b.dataset.v;refresh()});
+$('fv').addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;
+  if(b.dataset.v==='xls'){exportXlsx();return}
+  fview=b.dataset.v;refresh();
+});
 $('fx').addEventListener('click',function(e){var g=e.target.closest('[data-n]');if(!g)return;fsel=fsel===g.dataset.n?'all':g.dataset.n;refresh()});
 $('fdet').addEventListener('click',function(e){
   var t=e.target;
