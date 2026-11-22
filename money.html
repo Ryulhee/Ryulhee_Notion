@@ -201,6 +201,13 @@ details.card>.in{padding:0 12px 12px}
 .sw.custom{position:relative;overflow:hidden;background:conic-gradient(#f2552c,#f2b705,#22b06a,#3b7fc4,#a96ff2,#f2552c)}
 .sw.custom input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;padding:0;border:0}
 #mDay{width:auto;height:28px;padding:0 8px}
+.mrow{display:grid;grid-template-columns:58px 1fr 76px;gap:8px;align-items:center;padding:3px 4px;border-radius:8px;cursor:pointer}
+.mrow:hover,.mrow.on{background:var(--soft)}
+.mb{display:flex;height:22px;border-radius:6px;overflow:hidden;background:var(--soft)}
+.mb i{display:block;font-style:normal;font-size:10px;line-height:22px;text-align:center;color:#fff;text-shadow:0 0 2px rgba(0,0,0,.4);overflow:hidden;white-space:nowrap}
+.mr,.ml{color:var(--muted);font-size:11px;white-space:nowrap}
+.mr{text-align:right}
+.c-inkp{fill:var(--ink);opacity:.4}.c-lockedp{fill:var(--locked);opacity:.4}.c-lostp{fill:var(--lost);opacity:.4}
 .chart [data-n]{cursor:pointer}
 .chart .nd{fill:var(--card);stroke:var(--fg);stroke-width:1.5}
 .chart .nd.sel{stroke-width:3.2}
@@ -222,12 +229,11 @@ details.card>.in{padding:0 12px 12px}
 <!-- 위쪽 길고 짧은 띠 -->
 <div id="stripWrap">
   <a class="strip" id="strip" href="https://claude.ai/artifact/WKzVGpSamgX3XmVYMHsWZJ#detail" target="_blank" rel="noopener" aria-label="돈관리 자세히 보기">
-    <div><span class="lab">내 돈</span><span class="big num" id="sCash"></span></div>
+    <div><span class="lab">주통장 잔액</span><span class="big num" id="sCash"></span></div>
     <div class="mid"><svg id="sDots" viewBox="0 0 400 10" role="img" aria-label="이번 달 돈 쓰임새"></svg><div class="leg" id="sLeg"></div></div>
     <div class="side">
       <div class="rmini" id="sRiskBox"><span class="f" id="sFace"></span><div><span class="lab">돈 위험도</span><b id="sRisk"></b></div></div>
       <div id="sWeekBox"><span class="lab">7일 뒤 예상</span><b class="num" id="sWeek"></b></div>
-      <div><span class="lab">저금통장</span><b class="num" id="sSav"></b></div>
     </div>
     <span class="go">자세히 ↗</span>
   </a>
@@ -242,10 +248,10 @@ details.card>.in{padding:0 12px 12px}
   </div>
   <div class="grid">
     <section class="card c8">
-      <h2>자금 흐름 <small>날짜별 잔액 · 흐름도</small><span class="seg" id="fv" role="group" aria-label="보기" style="margin-left:auto"><button data-v="dot">도트</button><button data-v="flow">흐름도</button></span></h2>
+      <h2>자금 흐름 <small>지금을 가운데로 · 앞뒤 같은 기간</small><span class="seg" id="fv" role="group" aria-label="보기" style="margin-left:auto"><button data-v="dot">도트</button><button data-v="flow">흐름도</button></span></h2>
       <div class="row">
         <span id="tgtRow"><input id="target" type="date" aria-label="날짜"> <button class="pill" id="tToday" type="button">오늘</button></span>
-        <div class="seg" id="hz" role="group" aria-label="기간"><button data-h="12">1년</button><button data-h="24">2년</button><button data-h="36">3년</button><button data-h="60">5년</button></div>
+        <div class="seg" id="hz" role="group" aria-label="기간"><button data-h="6">6개월</button><button data-h="12">1년</button><button data-h="24">2년</button><button data-h="36">3년</button></div>
       </div>
       <div id="fp1"><div class="res" id="res"></div>
       <svg class="chart" id="flow" role="img" aria-label="월말 자금 예측"></svg>
@@ -254,6 +260,9 @@ details.card>.in{padding:0 12px 12px}
         <small id="fnote" style="display:block;margin-bottom:4px"></small>
         <svg class="chart" id="fx" role="img" aria-label="현금 흐름도"></svg>
         <div id="fdet" style="margin-top:8px"></div>
+        <h2 style="margin:14px 0 6px">시기별로 어디로 나갔나 <small>수입 대비 % · 눌러서 그 달로 이동</small></h2>
+        <div id="mshare"></div>
+        <div class="legend" id="mleg"></div>
         <h2 style="margin:14px 0 6px">쌓인 돈 추이 <small>통장 · 적금 · 청약 · 보험</small></h2>
         <svg class="chart" id="sx" role="img" aria-label="쌓인 돈 추이"></svg>
         <div class="legend"><span><i style="background:#e07b39"></i>통장</span><span><i style="background:#22b06a"></i>적금</span><span><i style="background:#2fb7c9"></i>청약</span><span><i style="background:#7c8cf8"></i>보험(낸 돈)</span><span id="sxu"></span></div>
@@ -475,7 +484,7 @@ function projInc(){return projIncomes().reduce(function(s,x){return s+x.amount},
 function incFor(ym){var cur=dstr(today0()).slice(0,7);return ym<cur?incOf(ym):Math.max(incOf(ym),projInc())}
 
 /* ---------- simulation ---------- */
-function sim(until,fails,evs){
+function sim(until,fails,evs,noIn){
   var cur=today0(), bal=+S.balance||0, acBase=acctTotal(), locked=acBase, snaps=[], stock={}, pinc=projIncomes(), curYm=dstr(cur).slice(0,7), gotCur=incOf(curYm)>0;
   var st=S.items.map(function(i){return{i:i,rem:i.balance||0,k:0,paid:false}});
   S.items.forEach(function(i){if(stocked(i)){stock[i.id]=heldNow(i);if(isSave(i))locked+=stock[i.id]}});
@@ -483,10 +492,10 @@ function sim(until,fails,evs){
   while(cur<until){
     cur=new Date(cur.getFullYear(),cur.getMonth(),cur.getDate()+1);
     var y=cur.getFullYear(),m=cur.getMonth(),d=cur.getDate(),dm=dim(y,m);
-    pinc.forEach(function(inc){if(gotCur&&dstr(cur).slice(0,7)===curYm)return;if(d===Math.min(inc.day||1,dm)){bal+=(+inc.amount||0);if(evs)evs.push({d:new Date(cur),n:'입금 (예상)',a:+inc.amount||0,k:'in'})}});
+    if(!noIn)pinc.forEach(function(inc){if(gotCur&&dstr(cur).slice(0,7)===curYm)return;if(d===Math.min(inc.day||1,dm)){bal+=(+inc.amount||0);if(evs)evs.push({d:new Date(cur),n:'입금 (예상)',a:+inc.amount||0,k:'in'})}});
     st.forEach(function(x){
       var it=x.i,e=endIdx(it);
-      if(it.type==='card'&&x.paid&&d===Math.min(it.refundDay||it.day||1,dm)&&!(e!==null&&ymIdx(cur)>e)){bal+=cardRefund(it);if(evs)evs.push({d:new Date(cur),n:it.name+' 환급',a:cardRefund(it),k:'in'})}
+      if(!noIn&&it.type==='card'&&x.paid&&d===Math.min(it.refundDay||it.day||1,dm)&&!(e!==null&&ymIdx(cur)>e)){bal+=cardRefund(it);if(evs)evs.push({d:new Date(cur),n:it.name+' 환급',a:cardRefund(it),k:'in'})}
       if(d!==Math.min(it.day||1,dm))return;
       if(e!==null&&ymIdx(cur)>e)return;
       if(it.type==='loan'){
@@ -659,7 +668,8 @@ function renderSettings(){
 
 /* ---------- dot-matrix chart (forecast) ---------- */
 function dotChart(svg,cols,o){
-  var n=cols.length,W=o.W,p=o.p,r=o.r,R=0,NR=0;
+  var n=cols.length,W=o.W,p=o.p,r=o.r,R=0,NR=0,curI=-1;
+  cols.forEach(function(c,i){if(c.cur)curI=i});
   cols.forEach(function(c){
     c.pos.forEach(function(x){x.n=Math.min(x.n,30)});(c.neg||[]).forEach(function(x){x.n=Math.min(x.n,30)});R=Math.max(R,c.pos.reduce(function(s,x){return s+x.n},0));
     NR=Math.max(NR,(c.neg||[]).reduce(function(s,x){return s+x.n},0));
@@ -672,11 +682,21 @@ function dotChart(svg,cols,o){
     row=0;
     (c.neg||[]).forEach(function(s){for(var j=0;j<s.n;j++){var y=base+(row+.5)*p;row++;for(var q=0;q<k;q++)g+='<circle class="c-'+s.c+'" cx="'+(x0+q*p).toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+r+'"/>'}});
     out+='<g'+(c.key?' data-d="'+c.key+'"':'')+'>'+t+g+(c.key?'<rect class="hit" x="'+(i*cw)+'" y="0" width="'+cw+'" height="'+(H-lab)+'"/>':'')+'</g>';
-    if(o.labels&&c.label&&(i%Math.ceil(n/12)===0||i===n-1))out+='<text x="'+(i*cw+cw/2)+'" y="'+(H-3)+'" text-anchor="middle">'+c.label+'</text>';
+    if(o.labels&&c.label&&(c.cur||((i%Math.ceil(n/12)===0||i===n-1)&&(curI<0||Math.abs(i-curI)>=Math.ceil(n/12)/2+1))))out+='<text x="'+(i*cw+cw/2)+'" y="'+(H-3)+'" text-anchor="middle">'+c.label+'</text>';
   });
   if(o.mark!=null&&o.mark>=0&&o.mark<n){var mx=o.mark*cw+cw/2;out+='<line class="mk" x1="'+mx+'" x2="'+mx+'" y1="0" y2="'+(H-lab)+'"/>'}
   svg.setAttribute('viewBox','0 0 '+W+' '+H);
   svg.innerHTML=out;
+}
+function logEff(l){return l.k==='out'||l.k==='save'?-l.a:l.a}
+function histAt(end){
+  var es=dstr(end),bal=+S.balance||0,sav=acctTotal();
+  S.log.forEach(function(l){if(l.t>es){bal-=logEff(l);if(l.k==='save')sav-=l.a}});
+  S.items.forEach(function(it){
+    if(it.type!=='saving'&&it.type!=='cheongyak')return;
+    sav+=(+it.saved||0)+((it.savedAt&&es>=it.savedAt)?(+it.amount||0)*countPays(it,it.savedAt,end):0);
+  });
+  return{bal:bal,locked:sav};
 }
 function niceUnit(v){var s=Math.pow(10,Math.floor(Math.log10(Math.max(v,1))));var m=v/s;return (m<=1?1:m<=2?2:m<=5?5:10)*s}
 function renderFlow(){
@@ -697,31 +717,42 @@ function renderFlow(){
       '<div><small>순자산 (대출 뺀 합계)</small><b class="num">'+won(net)+'</b></div>';
   }
   document.querySelectorAll('#hz button').forEach(function(b){b.setAttribute('aria-pressed',String(+b.dataset.h===S.horizon))});
-  var H=S.horizon||12,rr=sim(new Date(t.getFullYear(),t.getMonth()+H,0)),sn=rr.snaps.slice(0,H);
-  var mx=1;sn.forEach(function(s){mx=Math.max(mx,Math.abs(s.bal)+s.locked,s.locked,-s.bal)});
+  if(S.horizon>36)S.horizon=36;
+  var H=S.horizon||12,rr=sim(new Date(t.getFullYear(),t.getMonth()+H+1,0)),fut=rr.snaps.slice(0,H+1),all=[],curIdx=ymIdx(t);
+  if(!fut.length||fut[0].m!==t.getMonth()){var h0=histAt(new Date(t.getFullYear(),t.getMonth()+1,0));fut.unshift({y:t.getFullYear(),m:t.getMonth(),bal:h0.bal,locked:h0.locked});fut=fut.slice(0,H+1)}
+  var minYm=S.log.reduce(function(m,l){var y=l.t.slice(0,7);return m===''||y<m?y:m},'');
+  for(var pi=H;pi>=1;pi--){
+    var pd=new Date(t.getFullYear(),t.getMonth()-pi,1),hh=histAt(new Date(pd.getFullYear(),pd.getMonth()+1,0));
+    var ymS=pd.getFullYear()+'-'+String(pd.getMonth()+1).padStart(2,'0');
+    all.push({y:pd.getFullYear(),m:pd.getMonth(),bal:hh.bal,locked:hh.locked,past:true,none:(minYm===''||ymS<minYm)});
+  }
+  fut.forEach(function(s,i){all.push({y:s.y,m:s.m,bal:s.bal,locked:s.locked,past:false,cur:i===0})});
+  var mx=1;all.forEach(function(s){if(s.none)return;mx=Math.max(mx,Math.abs(s.bal)+s.locked,s.locked,-s.bal)});
   var u=Math.max(10000,niceUnit(mx/8));
-  var mark=isNaN(tg)?-1:(tg.getFullYear()*12+tg.getMonth())-ymIdx(t);
-  var cols=sn.map(function(s){
-    var pos=[],neg=[];
-    if(s.bal>=0)pos.push({n:Math.round(s.bal/u),c:'ink'});else neg.push({n:Math.round(-s.bal/u),c:'lost'});
-    pos.push({n:Math.round(s.locked/u),c:'locked'});
-    return{pos:pos,neg:neg,label:(s.m+1)+'월',key:dstr(new Date(s.y,s.m+1,0)),
-      tip:s.y+'.'+(s.m+1)+' 말 · 내 돈 '+won(s.bal)+' · 묶인 돈 '+won(s.locked)}});
+  var mark=isNaN(tg)?-1:(tg.getFullYear()*12+tg.getMonth())-(curIdx-H);
+  var cols=all.map(function(s){
+    var pos=[],neg=[],sf=s.past?'p':'';
+    if(s.none){s.bal=0;s.locked=0}
+    if(s.bal>=0)pos.push({n:Math.round(s.bal/u),c:'ink'+sf});else neg.push({n:Math.round(-s.bal/u),c:'lost'+sf});
+    pos.push({n:Math.round(s.locked/u),c:'locked'+sf});
+    return{pos:pos,neg:neg,label:s.cur?'지금':(s.m+1)+'월',cur:!!s.cur,key:s.past?null:dstr(new Date(s.y,s.m+1,0)),
+      tip:s.none?(s.y+'.'+(s.m+1)+' · 기록 없음'):s.y+'.'+(s.m+1)+(s.past?' 말 (지난 기록) · ':' 말 · ')+'내 돈 '+won(s.bal)+' · 묶인 돈 '+won(s.locked)};
+  });
   dotChart($('flow'),cols,{W:700,p:10,r:3.6,maxK:4,labels:true,mark:mark});
-  $('unit').textContent='점 1개 ≈ '+man(u)+'원';
+  $('unit').textContent='점 1개 ≈ '+man(u)+'원 · 연한 점은 지난 기록';
 }
 
 /* ---------- 곧 빠져나갈 돈 ---------- */
 var upDays=7;
 function weekData(days){
-  var t=today0(),until=new Date(t.getFullYear(),t.getMonth(),t.getDate()+days),evs=[],r=sim(until,null,evs),o=0,n=0;
+  var t=today0(),until=new Date(t.getFullYear(),t.getMonth(),t.getDate()+days),evs=[],r=sim(until,null,evs,true),o=0,n=0;
   evs.forEach(function(e){if(e.k==='in')n+=e.a;else o+=e.a});
   return{evs:evs,bal:r.bal,out:o,inn:n};
 }
 function renderWeek(){
   var w=weekData(7),el=$('sWeek'),cnt=w.evs.filter(function(e){return e.k==='out'}).length;
   el.textContent=won(w.bal);el.className='num'+(w.bal<0?' neg':'');
-  $('sWeekBox').title='내일부터 7일 · 나갈 돈 '+won(w.out)+' ('+cnt+'건)'+(w.inn?' · 들어올 돈 '+won(w.inn):'');
+  $('sWeekBox').title='내일부터 7일 · 나갈 돈 '+won(w.out)+' ('+cnt+'건)';
   renderUpcoming();
 }
 function renderUpcoming(){
@@ -734,8 +765,8 @@ function renderUpcoming(){
       return '<li><span><span class="mut">'+(e.d.getMonth()+1)+'/'+e.d.getDate()+'</span><span class="nm">'+esc(e.n)+'</span><span class="tag">D-'+n+'</span></span><span class="num '+(e.k==='in'?'pos':'')+'">'+(e.k==='in'?'+':'−')+won(e.a)+'</span></li>';
     }).join(''):'<li><span class="mut">앞으로 '+upDays+'일 안에 나갈 돈이 없어요</span></li>')+'</ul>'+
     '<div class="sumrow"><span>나갈 돈 합계</span><b class="num">'+won(w.out)+'</b></div>'+
-    (w.inn?'<div class="sumrow" style="border-top:0;margin-top:0"><span>들어올 돈 (예상)</span><b class="num pos">'+won(w.inn)+'</b></div>':'')+
-    '<small style="display:block;margin-top:4px">고정 항목 납입일 기준이에요. 지출 기록으로 쓰는 돈은 포함하지 않아요.</small>';
+    
+    '<small style="display:block;margin-top:4px">나갈 돈(고정 항목)만 계산해요. 월급 같은 들어올 돈과 지출 기록은 넣지 않았어요.</small>';
 }
 
 /* ---------- 현금 흐름도 (두 번째 페이지) ---------- */
@@ -776,68 +807,52 @@ function fStockTxt(k,st){
   if(k==='loan')return '남은 원금 '+won(st.loan);
   return '';
 }
-function drawFlowchart(fc){
-  var svg=$('fx'),cx=250,g=fc.g,st=fc.st,inc=fc.inc;
-  var fixed=g.loan+g.spend+g.ins,saves=g.cy+g.sv+g.man,rem1=inc-fixed,rem2=rem1-saves,remain=rem2-g.rec;
-  var ok1=inc>0&&rem1>=0,ok2=inc>0&&rem2>=0&&g.rec<=rem2;
-  var o='<defs><marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="var(--fg)"/></marker></defs>';
-  function ln(d,na){return '<path class="cn'+(na?' nm':'')+'" d="'+d+'"/>'}
-  function tx(x,y,s,c){return '<text class="'+c+'" x="'+x+'" y="'+y+'" text-anchor="middle">'+s+'</text>'}
-  function sl(k){return fsel===k?' sel':''}
-  function box(k,x,y,w,h,color,l1,l2,l3,dim){
-    return '<g data-n="'+k+'"'+(dim?' class="dim"':'')+'><rect class="nd'+sl(k)+'" x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="7" style="fill:color-mix(in srgb,'+color+' 17%,var(--card))"/>'+
-      tx(x+w/2,y+20,l1,'ft')+(l2?tx(x+w/2,y+37,l2,'fm'):'')+(l3?tx(x+w/2,y+52,l3,'fm'):'')+'</g>';
+function drawSankey(fc){
+  var svg=$('fx'),W=700,Rx=330,top=22,gap=6,total=Math.max(fc.inc,fc.used),scale=total>0?220/total:0;
+  var has={ins:fc.st.ins>0,cy:fc.st.cy>0,sv:fc.st.sv>0,man:fc.st.man>0,loan:fc.st.loan>0};
+  var nodes=FN.map(function(n){return{k:n.k,name:n.name,c:n.c,v:n.k==='remain'?fc.remain:fc.g[n.k],txt:fStockTxt(n.k,fc.st)}})
+    .filter(function(n){return n.v>0||has[n.k]});
+  if(fsel!=='all'&&fsel!=='inc'&&!nodes.some(function(n){return n.k===fsel}))fsel='all';
+  if(!nodes.length){svg.setAttribute('viewBox','0 0 700 40');svg.innerHTML='<text x="0" y="24">내 돈에 월급을 넣으면 흐름도가 그려져요</text>';return}
+  var y=top,ly=top,o='',lh=0;
+  nodes.forEach(function(n){n.h=n.v>0?Math.max(5,n.v*scale):3;if(n.v>0)lh+=n.h});
+  o+='<g data-n="inc"><text class="fn" x="0" y="12">월 수입 '+won(fc.inc)+(fc.over>0?' <tspan class="fs">· 수입보다 '+won(fc.over)+' 더 나가요</tspan>':'')+'</text>'+
+     '<rect x="0" y="'+top+'" width="12" height="'+lh.toFixed(1)+'" rx="2" fill="var(--ink)" opacity=".85"/></g>';
+  nodes.forEach(function(n){
+    var rh=Math.max(n.h+8,n.txt?38:26),by=y+(rh-n.h)/2,mid=y+rh/2,g='';
+    if(fsel===n.k)g+='<rect x="'+(Rx-8)+'" y="'+y+'" width="'+(W-Rx+8)+'" height="'+rh+'" rx="6" fill="var(--soft)"/>';
+    if(n.v>0){
+      var y0=ly,x1=12,x2=Rx,mx=(x1+x2)/2;
+      g+='<path d="M'+x1+' '+y0.toFixed(1)+'C'+mx+' '+y0.toFixed(1)+' '+mx+' '+by.toFixed(1)+' '+x2+' '+by.toFixed(1)+'L'+x2+' '+(by+n.h).toFixed(1)+'C'+mx+' '+(by+n.h).toFixed(1)+' '+mx+' '+(y0+n.h).toFixed(1)+' '+x1+' '+(y0+n.h).toFixed(1)+'Z" fill="'+n.c+'" opacity=".3"/>';
+      ly+=n.h;
+    }
+    g+='<rect x="'+Rx+'" y="'+by.toFixed(1)+'" width="12" height="'+n.h.toFixed(1)+'" rx="2" fill="'+n.c+'"/>';
+    g+='<text class="fn" x="'+(Rx+24)+'" y="'+(n.txt?mid-3:mid+4).toFixed(1)+'">'+n.name+' <tspan class="fs">'+(n.v>0?won(n.v)+(total>0?' · '+Math.round(n.v/total*100)+'%':''):'이번 달 0원')+'</tspan></text>';
+    if(n.txt)g+='<text x="'+(Rx+24)+'" y="'+(mid+12).toFixed(1)+'">'+n.txt+'</text>';
+    g+='<rect class="hit" x="'+(Rx-8)+'" y="'+y+'" width="'+(W-Rx+8)+'" height="'+rh+'"/>';
+    o+='<g data-n="'+n.k+'">'+g+'</g>';
+    y+=rh+gap;
+  });
+  svg.setAttribute('viewBox','0 0 '+W+' '+(y+2));svg.innerHTML=o;
+}function renderShare(){
+  var el=$('mshare'),H=Math.min(12,Math.max(6,S.horizon||12)),cur=ymIdx(today0()),h='';
+  var minYm=S.log.reduce(function(m,l){var y=l.t.slice(0,7);return m===''||y<m?y:m},'');
+  var curYm=dstr(today0()).slice(0,7);
+  for(var i=H-1;i>=0;i--){
+    var idx=cur-i,ym=Math.floor(idx/12)+'-'+String(idx%12+1).padStart(2,'0'),fc=flowCalc(ym),total=Math.max(fc.inc,fc.used),bar;
+    var noData=ym<curYm&&(minYm===''||ym<minYm);
+    if(noData)continue;
+    if(noData||total<=0)bar='<span class="mut" style="padding:0 8px;line-height:22px">기록 없음</span>';
+    else bar=FN.map(function(n){return{n:n,v:n.k==='remain'?fc.remain:fc.g[n.k]}}).filter(function(s){return s.v>0}).map(function(s){
+      var p=s.v/total*100;
+      return '<i style="width:'+p.toFixed(2)+'%;background:'+s.n.c+'" title="'+s.n.name+' '+won(s.v)+' ('+Math.round(p)+'%)">'+(p>=8?Math.round(p)+'%':'')+'</i>';
+    }).join('');
+    h+='<div class="mrow'+(ym===viewYm?' on':'')+'" data-ym="'+ym+'"><span class="ml num">'+ym.replace('-','.')+'</span><div class="mb">'+bar+'</div><span class="mr num">'+(!noData&&fc.inc>0?man(fc.inc):'-')+(!noData&&fc.over>0?' <b class="neg">초과</b>':'')+'</span></div>';
   }
-  function term(k,x,y,w,h,l1,l2){
-    return '<g'+(k?' data-n="'+k+'"':'')+'><rect class="nd'+sl(k)+'" x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="'+(h/2)+'"/>'+tx(x+w/2,y+(l2?h/2-3:h/2+4),l1,'ft')+(l2?tx(x+w/2,y+h/2+13,l2,'fm'):'')+'</g>';
-  }
-  function dia(k,x,y,w,h,l1,l2){
-    var c=x+w/2,m=y+h/2;
-    return '<g data-n="'+k+'"><polygon class="nd'+sl(k)+'" points="'+c+','+y+' '+(x+w)+','+m+' '+c+','+(y+h)+' '+x+','+m+'"/>'+tx(c,m-2,l1,'ft')+tx(c,m+15,l2,'fm')+'</g>';
-  }
-  function doc(k,x,y,w,h,l1,l2,cls,dim){
-    var b=y+h-8;
-    return '<g'+(k?' data-n="'+k+'"':'')+(dim?' class="dim"':'')+'><path class="nd'+sl(k)+(cls?' '+cls:'')+'" d="M'+x+' '+y+'H'+(x+w)+'V'+b+'Q'+(x+w*.75)+' '+(y+h+5)+' '+(x+w/2)+' '+b+'T'+x+' '+b+'Z"/>'+tx(x+w/2,y+19,l1,'ft')+tx(x+w/2,y+34,l2,'fm')+'</g>';
-  }
-  var c1=cx-162,c2=cx,c3=cx+162,bw=150;
-  /* 1. 시작 */
-  o+=term('inc',cx-115,0,230,46,'월급이 들어왔다','이번 달 수입 '+won(inc));
-  o+=ln('M'+cx+' 46V66');
-  /* 2. 준비 */
-  o+='<g data-n="all"><polygon class="nd" points="'+(cx-165+22)+',66 '+(cx+165-22)+',66 '+(cx+165)+',95 '+(cx+165-22)+',124 '+(cx-165+22)+',124 '+(cx-165)+',95"/>'+tx(cx,90,'쓸 수 있는 돈 = 수입 '+won(inc),'ft')+tx(cx,107,'수중에 있는 돈 '+won(S.balance),'fm')+'</g>';
-  /* 3. 고정 지출 (갈래) */
-  o+=ln('M'+cx+' 124V138',1)+ln('M'+c1+' 138H'+c3,1);
-  [c1,c2,c3].forEach(function(c){o+=ln('M'+c+' 138V154')});
-  o+=box('loan',c1-bw/2,154,bw,68,fnc('loan'),'대출 갚기','이번 달 '+won(g.loan),'남은 원금 '+won(st.loan),g.loan<=0&&st.loan<=0);
-  o+=box('spend',c2-bw/2,154,bw,68,'#8a8a86','카드·생활·기타','이번 달 '+won(g.spend),'',g.spend<=0);
-  o+=box('ins',c3-bw/2,154,bw,68,fnc('ins'),'보험','이번 달 '+won(g.ins),'낸 돈 누계 '+won(st.ins),g.ins<=0&&st.ins<=0);
-  [c1,c2,c3].forEach(function(c){o+=ln('M'+c+' 222V236',1)});
-  o+=ln('M'+c1+' 236H'+c3,1)+ln('M'+cx+' 236V258');
-  /* 4. 판단: 남은 돈이 있나 */
-  o+=dia('remain',cx-150,258,300,88,'남은 돈이 있나?',inc>0?'수입 − 고정 = '+won(rem1):'입금 기록이 필요해요');
-  o+=ln('M'+(cx+150)+' 302H505')+tx(cx+205,294,'NO','yn')+'<text class="yn" x="'+(cx+14)+'" y="366">YES</text>';
-  o+=doc('',505,278,150,48,'저금 못 해요',inc>0?'부족 '+won(Math.max(0,-rem1)):'-',ok1?'':'bad',ok1)+ln('M655 302H675',1);
-  o+=ln('M'+cx+' 346V372',1)+ln('M'+c1+' 372H'+c3,1);
-  /* 5. 저금 나누기 (갈래) */
-  [c1,c2,c3].forEach(function(c){o+=ln('M'+c+' 372V388')});
-  o+=box('cy',c1-bw/2,388,bw,68,fnc('cy'),'청약','이번 달 '+won(g.cy),'모인 돈 '+won(st.cy),g.cy<=0&&st.cy<=0);
-  o+=box('sv',c2-bw/2,388,bw,68,fnc('sv'),'적금','이번 달 '+won(g.sv),'모인 돈 '+won(st.sv),g.sv<=0&&st.sv<=0);
-  o+=box('man',c3-bw/2,388,bw,68,fnc('man'),'통장에 저금','이번 달 '+won(g.man),'통장 합계 '+won(st.man),g.man<=0&&st.man<=0);
-  [c1,c2,c3].forEach(function(c){o+=ln('M'+c+' 456V470',1)});
-  o+=ln('M'+c1+' 470H'+c3,1)+ln('M'+cx+' 470V492');
-  /* 6. 판단: 지출 기록이 남은 돈 안인가 */
-  o+=dia('rec',cx-150,492,300,88,'지출 기록이 남은 돈 안인가?','기록 '+won(g.rec)+' / 남은 '+won(Math.max(0,rem2)));
-  o+=ln('M'+(cx+150)+' 536H505')+tx(cx+205,528,'NO','yn')+'<text class="yn" x="'+(cx+14)+'" y="600">YES</text>';
-  o+=doc('',505,512,150,48,'더 썼어요',inc>0?'넘은 돈 '+won(Math.max(0,g.rec-Math.max(0,rem2))):'-',ok2||!inc?'':'bad',ok2||!inc)+ln('M655 536H675',1);
-  o+=ln('M'+cx+' 580V606');
-  /* 7. 출력 */
-  o+=doc('remain',cx-135,606,270,52,'남는 돈 '+won(Math.max(0,remain)),'내 돈에 보관해요');
-  o+=ln('M'+cx+' 660V684');
-  /* 8. 끝 */
-  o+=term('',cx-100,684,200,44,'끝 · 다음 달로','');
-  o+=ln('M675 302V706H'+(cx+100),0).replace('class="cn"','class="cn" style="stroke-dasharray:none"');
-  svg.setAttribute('viewBox','0 0 700 732');svg.innerHTML=o;
-}function fmtH(){var H=S.horizon||12;return H%12===0?(H/12)+'년':H+'개월'}
+  el.innerHTML=h;
+  $('mleg').innerHTML=FN.map(function(n){return '<span><i style="background:'+n.c+'"></i>'+n.name+'</span>'}).join('');
+}
+function fmtH(){var H=S.horizon||12;return H%12===0?(H/12)+'년':H+'개월'}
 function renderFDet(fc,sr){
   var el=$('fdet'),k=fsel,h='',st=fc.st,mi=(+viewYm.slice(0,4))*12+(+viewYm.slice(5,7)-1);
   function row(key,nm,val,cnt){return '<li data-go="'+key+'" style="cursor:pointer"><span><i class="cd" style="background:'+fnc(key)+'"></i><span class="nm">'+nm+'</span>'+(cnt?'<span class="tag">'+cnt+'</span>':'')+'</span><span class="num">'+won(val)+'</span></li>'}
@@ -886,8 +901,8 @@ function renderFDet(fc,sr){
 }
 function renderFlow2(){
   var fc=flowCalc(viewYm),H=S.horizon||12,t=today0(),until=new Date(t.getFullYear(),t.getMonth()+H,0),sr=sim(until);
-  $('fnote').textContent=viewYm.replace('-','.')+' 기준 · 들어온 돈이 어디로 가는지 · 칸을 누르면 자세히';
-  drawFlowchart(fc);
+  $('fnote').textContent=viewYm.replace('-','.')+' 기준 · 들어온 돈이 어디로 나뉘는지 · 눌러서 자세히';
+  drawSankey(fc);renderShare();
   if(!keepDet)renderFDet(fc,sr);
   var sn=sr.snaps.slice(0,H),mx=0;
   sn.forEach(function(s){mx=Math.max(mx,s.ac+s.sv+s.cy+s.ins)});
@@ -979,7 +994,7 @@ function renderRisk(c){
 }
 /* ---------- strip / header ---------- */
 function renderTop(u){
-  $('sCash').innerHTML=bigWon(S.balance);$('sSav').textContent=won(acctTotal());
+  $('sCash').innerHTML=bigWon(S.balance);
   segDots($('sDots'),u.segs,40,40,10,4);
   var spent=u.used-u.save;
   $('sLeg').innerHTML='<span><i style="background:var(--ink)"></i>쓴 돈 <b class="num">'+man(spent)+'</b></span><span><i style="background:var(--locked)"></i>저금 <b class="num">'+man(u.save)+'</b></span><span><i style="background:var(--gray)"></i>남은 돈 <b class="num">'+man(u.remain)+'</b></span><span>이번 달</span>';
@@ -1178,6 +1193,7 @@ $('addCat').addEventListener('click',function(){
   S.cats.push({id:'c'+Date.now(),name:'새 항목',color:pal[S.cats.length%pal.length]});renderSettings();renderSpend();refresh();
 });
 
+$('mshare').addEventListener('click',function(e){var r=e.target.closest('[data-ym]');if(!r)return;viewDay='';viewYm=r.dataset.ym;setMonth()});
 /* 곧 빠져나갈 돈 */
 $('upc').addEventListener('click',function(e){var b=e.target.closest('[data-ud]');if(!b)return;upDays=+b.dataset.ud;renderUpcoming()});
 /* 현금 흐름도 */
