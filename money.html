@@ -167,7 +167,7 @@ details.card>.in{padding:0 12px 12px}
 .mnav b{min-width:64px;text-align:center;font-size:15px;font-weight:800}
 .c8{grid-column:span 8}
 @media (max-width:900px){.c8{grid-column:span 12}}
-.stats{display:flex;flex-direction:column;justify-content:flex-start;gap:2px;align-self:start}
+.stats{display:flex;flex-direction:column;justify-content:flex-start;gap:2px}
 .srow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
 .srow:last-child{border-bottom:0}
 .srow>span:first-child{color:var(--muted)}
@@ -201,6 +201,16 @@ details.card>.in{padding:0 12px 12px}
 .sw.custom{position:relative;overflow:hidden;background:conic-gradient(#f2552c,#f2b705,#22b06a,#3b7fc4,#a96ff2,#f2552c)}
 .sw.custom input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;padding:0;border:0}
 #mDay{width:auto;height:28px;padding:0 8px}
+.c3{grid-column:span 3}
+@media (max-width:1100px){.c3{grid-column:span 6}.c6{grid-column:span 12}}
+@media (max-width:700px){.c3{grid-column:span 12}}
+.donutwrap{display:flex;justify-content:center;margin:2px 0 6px}
+.donutwrap svg{width:150px;height:150px}
+.donutwrap text{font-family:var(--font);text-anchor:middle}
+.donutwrap .d1{fill:var(--muted);font-size:9px}
+.donutwrap .d2{fill:var(--fg);font-size:15px;font-weight:800}
+.cp{color:var(--muted);font-size:11px;white-space:nowrap}
+span.dotbtn{display:block}
 .mrow{display:grid;grid-template-columns:58px 1fr 76px;gap:8px;align-items:center;padding:3px 4px;border-radius:8px;cursor:pointer}
 .mrow:hover,.mrow.on{background:var(--soft)}
 .mb{display:flex;height:22px;border-radius:6px;overflow:hidden;background:var(--soft)}
@@ -247,7 +257,7 @@ details.card>.in{padding:0 12px 12px}
     <a class="pill" href="#">← 요약만 보기</a>
   </div>
   <div class="grid">
-    <section class="card c8">
+    <section class="card c6">
       <h2>자금 흐름 <small>지금을 가운데로 · 앞뒤 같은 기간</small><span class="seg" id="fv" role="group" aria-label="보기" style="margin-left:auto"><button data-v="dot">도트</button><button data-v="flow">흐름도</button></span></h2>
       <div class="row">
         <span id="tgtRow"><input id="target" type="date" aria-label="날짜"> <button class="pill" id="tToday" type="button">오늘</button></span>
@@ -267,8 +277,14 @@ details.card>.in{padding:0 12px 12px}
         <svg class="chart" id="sx" role="img" aria-label="쌓인 돈 추이"></svg>
         <div class="legend"><span><i style="background:#e07b39"></i>통장</span><span><i style="background:#22b06a"></i>적금</span><span><i style="background:#2fb7c9"></i>청약</span><span><i style="background:#7c8cf8"></i>보험(낸 돈)</span><span id="sxu"></span></div>
       </div>
+          <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:10px">
+      <h2>이번 달 돈 쓰임새 <small id="usageNote"></small></h2>
+      <svg class="usage" id="usage" style="max-width:380px" viewBox="0 0 220 55" role="img" aria-label="이번 달 돈 쓰임새"></svg>
+      <div class="ul" id="usageLeg"></div>
+      <div class="u2" id="usage2"></div>
+          </div>
     </section>
-    <div class="c4 stack"><section class="card stats">
+    <div class="c3 stack"><section class="card stats">
       <div class="srow"><span>내 돈</span><b class="num" id="hCash"></b></div>
       <div class="srow"><span>저금통장</span><b class="num" id="hSav"></b></div>
       <div class="srow"><span>월 수입</span><b class="num" id="hInc"></b></div>
@@ -276,26 +292,23 @@ details.card>.in{padding:0 12px 12px}
       <div class="srow" id="hRiskBox"><span>돈 위험도</span><span class="rk"><span class="f" id="hFace"></span><b id="hRisk"></b></span></div>
     </section>
     <section class="card" id="upc"></section></div>
-
-    <section class="card c4">
-      <h2>이번 달 돈 쓰임새 <small id="usageNote"></small></h2>
-      <svg class="usage" id="usage" viewBox="0 0 220 55" role="img" aria-label="이번 달 돈 쓰임새"></svg>
-      <div class="ul" id="usageLeg"></div>
-      <div class="u2" id="usage2"></div>
-    </section>
-    <section class="card c4">
+    <section class="card c3" id="catcard">
+      <h2>지출 항목 · 색깔 수정 <small id="donutNote"></small></h2>
+      <div class="donutwrap"><svg id="donut" viewBox="0 0 120 120" role="img" aria-label="지출 비율"></svg></div>
+      <div id="donutLeg"></div>
+      <div id="incomes" hidden></div><button id="addInc" type="button" hidden></button>
+      <div id="cats"></div><button class="lk" id="addCat" type="button">+ 항목 추가</button>
+    </section>    <section class="card c3">
       <h2>고정으로 나가는 항목 <small id="fixNote"></small></h2>
       <div class="sc" id="items" style="max-height:300px"></div>
       <button class="btn add" id="add">+ 항목 추가</button>
       <div class="sumrow" id="fixSum"></div>
     </section>
-    <section class="card c4">
+    <section class="card c3">
       <h2>대출 · 카드 <small id="debtNote"></small></h2>
       <div class="sc" id="debts"></div>
     </section>
-
-    <div class="c6 stack">
-      <section class="card">
+      <section class="card c3">
         <h2>지출 기록 <small id="spendNote"></small></h2>
         <div class="row">
           <input id="sDate" type="date" aria-label="날짜" style="width:140px">
@@ -310,15 +323,7 @@ details.card>.in{padding:0 12px 12px}
         <div class="ul" id="catSum" style="margin:0 0 6px"></div>
         <ul class="list sc" id="sList" style="max-height:300px"></ul>
       </section>
-      <section class="card">
-        <h2>지출 항목 · 색깔 <small>색깔은 눌러서 바꿔요</small></h2>
-        <div class="two2" style="grid-template-columns:1fr">
-          <div id="incomes" hidden></div><button id="addInc" type="button" hidden></button>
-          <div><div id="cats"></div><button class="lk" id="addCat" type="button">+ 항목 추가</button></div>
-        </div>
-      </section>
-    </div>
-    <section class="card c6">
+    <section class="card c3">
       <h2>내 돈 · 저금통장 <small>넣은 돈은 그 달 수입으로 잡혀요</small></h2>
       <div class="two"><div><small>내 돈</small><b class="num" id="cBal"></b></div><div><small>저금통장</small><b class="num pos" id="cSav"></b></div></div>
       <div class="ul" id="cAccts" style="margin:-2px 0 8px"></div>
@@ -661,9 +666,35 @@ function renderSettings(){
   }).join('');
   $('cats').innerHTML=S.cats.map(function(c){
     var open=palOpen===c.id;
-    return '<div class="catrow" data-id="'+c.id+'"><div class="crow2"><button class="dotbtn" data-pal="1" type="button" style="background:'+c.color+'" aria-label="색깔 고르기" aria-expanded="'+open+'"></button><input class="flat" data-cf="name" value="'+esc(c.name)+'" aria-label="이름"><button class="x" data-del="1" type="button" aria-label="삭제">×</button></div>'+
+    return '<div class="catrow" data-id="'+c.id+'"><div class="crow2"><button class="dotbtn" data-pal="1" type="button" style="background:'+c.color+'" aria-label="색깔 고르기" aria-expanded="'+open+'"></button><input class="flat" data-cf="name" value="'+esc(c.name)+'" aria-label="이름"><span class="cp" data-cp="'+c.id+'"></span><button class="x" data-del="1" type="button" aria-label="삭제">×</button></div>'+
       (open?'<div class="pal">'+PAL.map(function(p){return '<button class="sw'+(p.toLowerCase()===String(c.color).toLowerCase()?' on':'')+'" data-sw="'+p+'" type="button" style="background:'+p+'" aria-label="'+p+'"></button>'}).join('')+'<label class="sw custom" title="직접 고르기"><input type="color" data-cf="color" value="'+c.color+'" aria-label="직접 고르기"></label></div>':'')+'</div>';
   }).join('');
+}
+
+var renderSettings0=renderSettings;
+renderSettings=function(){renderSettings0();renderDonut()};
+function renderDonut(){
+  var u=usage(viewYm),byCat={},segs=[{id:'fix',name:'고정 지출',color:'var(--ink)',v:u.fixed}];
+  S.log.forEach(function(l){if(l.k==='out'&&l.t.slice(0,7)===viewYm)byCat[l.cat]=(byCat[l.cat]||0)+l.a});
+  S.cats.forEach(function(c){if(byCat[c.id])segs.push({id:c.id,name:c.name,color:c.color,v:byCat[c.id]});delete byCat[c.id]});
+  Object.keys(byCat).forEach(function(k){segs.push({id:'x'+k,name:'삭제된 항목',color:'#8a8a86',v:byCat[k]})});
+  var tot=segs.reduce(function(s,x){return s+x.v},0),R=40,C=2*Math.PI*R,off=0,pct={};
+  var o='<circle cx="60" cy="60" r="40" fill="none" stroke="var(--soft)" stroke-width="16"/>';
+  if(tot>0)segs.forEach(function(s){
+    pct[s.id]=s;if(s.v<=0)return;
+    var len=s.v/tot*C;
+    o+='<circle cx="60" cy="60" r="40" fill="none" stroke="'+s.color+'" stroke-width="16" stroke-dasharray="'+len.toFixed(2)+' '+(C-len).toFixed(2)+'" stroke-dashoffset="'+(-off).toFixed(2)+'" transform="rotate(-90 60 60)"><title>'+s.name+' '+won(s.v)+' ('+Math.round(s.v/tot*100)+'%)</title></circle>';
+    off+=len;
+  });
+  o+='<text class="d1" x="60" y="56">'+(tot>0?'이번 달 지출':'지출 없음')+'</text><text class="d2" x="60" y="73">'+(tot>0?man(tot)+(tot<10000?'원':''):'-')+'</text>';
+  $('donut').innerHTML=o;
+  $('donutNote').textContent=viewYm.replace('-','.');
+  var fx=segs[0];
+  $('donutLeg').innerHTML='<div class="crow2" style="margin-bottom:4px"><span class="dotbtn" style="background:var(--ink);cursor:default"></span><span class="flat" style="cursor:default">고정 지출 <small>(고정 항목에서 고쳐요)</small></span><span class="cp">'+(tot>0&&fx.v>0?man(fx.v)+' · '+Math.round(fx.v/tot*100)+'%':'-')+'</span></div>';
+  S.cats.forEach(function(c){
+    var el=document.querySelector('[data-cp="'+c.id+'"]');if(!el)return;
+    var s=pct[c.id];el.textContent=s&&s.v>0&&tot>0?man(s.v)+' · '+Math.round(s.v/tot*100)+'%':'-';
+  });
 }
 
 /* ---------- dot-matrix chart (forecast) ---------- */
@@ -1060,7 +1091,7 @@ function renderItems(){$('items').innerHTML=S.items.slice().sort(function(a,b){r
 function refresh(){
   var sg=JSON.stringify(core());if(sg!==lastSig){lastSig=sg;if(booted)markState()}
   save();var c=calc(),cur=dstr(today0()).slice(0,7),u=usage(cur);
-  renderTop(u);renderUsage(viewYm===cur?u:usage(viewYm));renderFixed();renderDebts();renderRisk(c);renderWeek();renderFlow();
+  renderTop(u);renderUsage(viewYm===cur?u:usage(viewYm));renderFixed();renderDebts();renderRisk(c);renderWeek();renderDonut();renderFlow();
 }
 
 /* ---------- events ---------- */
