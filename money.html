@@ -212,7 +212,14 @@ html.le560 .two2{grid-template-columns:1fr}
 .ibtn{width:32px;height:30px;border-radius:999px;border:1px solid var(--line);background:var(--card);cursor:pointer;display:grid;place-items:center;padding:0;color:var(--muted)}
 .ibtn:hover{color:var(--fg);border-color:var(--muted)}
 /* 넓은 화면: 카드 크기는 고정, 내용이 많아지면 목록 부분만 카드 안에서 스크롤 */
-/* (화면 크기 1x/2x/3x 때문에 미디어쿼리 대신 html.ge1101 같은 클래스를 써요) */
+/* 칸별 확대: 1x 기본 / 2x 한 줄 전체 + 1.5배 / 3x 한 줄 전체 + 2배 */
+.grid>*{position:relative}
+.zc{position:absolute;top:-1px;right:14px;z-index:3;padding:1px;font-size:10px;opacity:.35;transition:opacity .15s}
+.grid>*:hover>.zc,.zc:focus-within{opacity:1}
+.zc button{padding:0 7px;line-height:15px}
+.grid>[data-z="2"]{grid-column:1/-1;zoom:1.5}
+.grid>[data-z="3"]{grid-column:1/-1;zoom:2}
+/* (미디어쿼리 대신 html.ge1101 같은 클래스를 써요) */
 html.ge1101 .grid>:nth-child(1),html.ge1101 .grid>:nth-child(3){height:520px}
 html.ge1101 .grid>:nth-child(n+4){height:380px}
 html.ge1101 .grid>:nth-child(1),html.ge1101 .grid>:nth-child(n+3){display:flex;flex-direction:column;overflow:hidden}
@@ -276,7 +283,7 @@ span.dotbtn{display:block}
   <div class="dh">
     <div><h1>돈관리</h1><small id="today"></small></div>
     <div class="mnav" role="group" aria-label="월 선택"><button id="mPrev" aria-label="이전 달">◀</button><b class="num" id="mLabel"></b><button id="mNext" aria-label="다음 달">▶</button><button class="pill" id="mNow" style="width:auto">오늘</button><input type="date" class="pill" id="mDay" aria-label="날짜로 보기" title="날짜로 보기"><button class="pill" id="mDayClr" style="width:auto" hidden>전체</button></div>
-    <span style="display:flex;gap:8px;align-items:center"><span class="seg" id="zm" role="group" aria-label="화면 크기" title="화면 크기"><button data-z="1" aria-pressed="true">1x</button><button data-z="2" aria-pressed="false">2x</button><button data-z="3" aria-pressed="false">3x</button></span><a class="pill" href="#">← 요약만 보기</a></span>
+    <a class="pill" href="#">← 요약만 보기</a>
   </div>
   <div class="grid">
     <section class="card c6">
@@ -1639,17 +1646,33 @@ $('csave').addEventListener('click',function(){
 setInterval(function(){if(!document.hidden&&!hashParams().detail&&cfg.u&&cfg.k)pullRemote()},120000);
 document.addEventListener('visibilitychange',function(){if(!document.hidden&&Date.now()-pulledAt>30000)pullRemote()});
 
-/* 화면 크기 1x/2x/3x (자세히 보기에서만) */
-var zoomV=1;
-try{zoomV=+localStorage.getItem('moneyplan.zoom')||1}catch(e){}
-if([1,2,3].indexOf(zoomV)<0)zoomV=1;
+/* 화면 폭에 따른 배치 클래스 + 카드별 1x/2x/3x 확대 (자세히 보기) */
 function applyZoom(){
-  var det=document.documentElement.dataset.v==='detail',z=det?zoomV:1,h=document.documentElement,w=window.innerWidth/z;
-  $('dash').style.zoom=z===1?'':z;
+  var h=document.documentElement,w=window.innerWidth;
   h.classList.toggle('ge1101',w>=1101);h.classList.toggle('le1100',w<=1100);h.classList.toggle('le900',w<=900);h.classList.toggle('le700',w<=700);h.classList.toggle('le560',w<=560);
-  [].forEach.call($('zm').querySelectorAll('button'),function(b){b.setAttribute('aria-pressed',String(+b.dataset.z===zoomV))});
 }
-$('zm').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;zoomV=+b.dataset.z;try{localStorage.setItem('moneyplan.zoom',String(zoomV))}catch(x){}applyZoom()});
+var CZ={};
+try{CZ=JSON.parse(localStorage.getItem('moneyplan.cz')||'{}')||{}}catch(e){CZ={}}
+function czApply(){
+  [].forEach.call($('dash').querySelector('.grid').children,function(el,i){
+    var z=+CZ[i]||1;el.dataset.z=z>1?z:'';
+    [].forEach.call(el.querySelectorAll(':scope>.zc button'),function(b){b.setAttribute('aria-pressed',String(+b.dataset.z===z))});
+  });
+}
+(function czInit(){
+  [].forEach.call($('dash').querySelector('.grid').children,function(el,i){
+    var s=document.createElement('span');s.className='seg zc';s.dataset.i=i;s.setAttribute('role','group');s.setAttribute('aria-label','이 칸 크기');
+    s.innerHTML='<button data-z="1" title="기본 크기">1x</button><button data-z="2" title="2배로 크게">2x</button><button data-z="3" title="3배로 크게">3x</button>';
+    el.appendChild(s);
+  });
+  $('dash').querySelector('.grid').addEventListener('click',function(e){
+    var b=e.target.closest('.zc button');if(!b)return;
+    var i=b.parentNode.dataset.i;if(+b.dataset.z>1)CZ[i]=+b.dataset.z;else delete CZ[i];
+    try{localStorage.setItem('moneyplan.cz',JSON.stringify(CZ))}catch(x){}
+    czApply();
+  });
+  czApply();
+})();
 window.addEventListener('resize',applyZoom);
 function view(){
   var d=!!hashParams().detail;
